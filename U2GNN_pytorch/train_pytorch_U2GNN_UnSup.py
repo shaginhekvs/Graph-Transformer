@@ -17,6 +17,7 @@ from sklearn.linear_model import LogisticRegression
 import statistics
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print("using device {} for pytorch computation".format(device))
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(123)
 

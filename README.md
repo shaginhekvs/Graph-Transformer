@@ -40,6 +40,12 @@ Regarding our supervised U2GNN:
 
 Regarding our unsupervised U2GNN:
 
+For finding the best hyperparameters for every dataset,run the scripts below, the notebook below will be very helpful: find_best_hyperparams_for_dataset.ipynb. For example, for IMDBBINARY, there was a 8 % increase in Mean Accuracy with Hyperparameter optimization.
+
+<p align="center">
+	<img src="https://github.com/shaginhekvs/Graph-Transformer/blob/master/hyperOpt.png">
+</p>
+
 	U2GNN$ python train_U2GNN_Unsup.py --dataset IMDBBINARY --batch_size 2 --ff_hidden_size 1024 --num_neighbors 8 --num_sampled 512 --num_epochs 50 --num_timesteps 1 --learning_rate 0.0001 --model_name IMDBBINARY_bs2_dro05_1024_8_idx0_1_2
 	
 	U2GNN$ python train_U2GNN_Unsup.py --dataset PTC --batch_size 2 --degree_as_tag --ff_hidden_size 1024 --num_neighbors 4 --num_sampled 512 --num_epochs 50 --num_timesteps 2 --learning_rate 0.0001 --model_name PTC_bs2_dro05_1024_4_idx0_2_2

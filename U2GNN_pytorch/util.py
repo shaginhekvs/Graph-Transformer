@@ -36,8 +36,12 @@ def load_data(dataset, degree_as_tag):
     g_list = []
     label_dict = {}
     feat_dict = {}
-
-    with open('../dataset/%s/%s.txt' % (dataset, dataset), 'r') as f:
+    import os 
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    parent_path = os.path.abspath(os.path.join(dir_path, os.pardir))
+    dataset_path = os.path.join(parent_path,"dataset",dataset,dataset+".txt")
+    print('dataset file chosen is {}'.format(dataset_path))
+    with open(dataset_path, 'r') as f:
         n_g = int(f.readline().strip())
         for i in range(n_g):
             row = f.readline().strip().split()
