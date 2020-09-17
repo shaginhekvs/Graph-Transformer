@@ -38,6 +38,10 @@ def get_Adj_matrix(batch_graph):
     return Adj_block_idx_row, Adj_block_idx_cl
 
 def get_graphpool(batch_graph,args):
+    '''
+    Combines all the graphs in sparse 2D mat of dim #num_graphs X #num_all_nodes
+    value 1 exists in the 2D mat where the graph's nodes are.
+    '''
     start_idx = [0]
     # compute the padded neighbor list
     for i, graph in enumerate(batch_graph):
@@ -56,11 +60,21 @@ def get_graphpool(batch_graph,args):
     return graph_pool.to(args.device)
 
 def get_idx_nodes(graph_indices, args,selected_graph_idx):
+    '''
+    returns
+    idx_nodes : 1D Tensor of where the nodes of selected_graph are, in the sparse graph matrix.
+    '''
     idx_nodes = [torch.where(graph_indices==i)[0] for i in selected_graph_idx]
     idx_nodes = torch.cat(idx_nodes)
     return idx_nodes.to(args.device)
 
 def get_batch_data(graphs,graph_indices,selected_idx,args):
+    '''
+    returns:
+    X_concat: concatenated features of all the selected graphs
+    input_x: neighbor matrix #num_nodes X # num neighbours + 1 
+    input_y: 1D Tensor of where the nodes of selected_graph are, in the sparse graph matrix.
+    '''
     batch_graph = [graphs[idx] for idx in selected_idx]
 
     X_concat = np.concatenate([graph.node_features for graph in batch_graph], 0)
@@ -69,7 +83,7 @@ def get_batch_data(graphs,graph_indices,selected_idx,args):
         X_concat = X_concat * 0.01
     X_concat = torch.from_numpy(X_concat).to(args.device)
 
-    Adj_block_idx_row, Adj_block_idx_cl = get_Adj_matrix(batch_graph)
+    Adj_block_idx_row, Adj_block_idx_cl  = get_Adj_matrix(batch_graph)
     dict_Adj_block = {}
     for i in range(len(Adj_block_idx_row)):
         if Adj_block_idx_row[i] not in dict_Adj_block:
