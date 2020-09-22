@@ -15,12 +15,7 @@ from .util import load_data, separate_data_idx
 from sklearn.linear_model import LogisticRegression
 import statistics
 
-class Namespace:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-    
-    def update(self, **kwargs):
-        self.__dict__.update(kwargs)
+
         
 def get_Adj_matrix(batch_graph):
     edge_mat_list = []
@@ -142,7 +137,7 @@ def data_loading_util(args):
     data_args['graph_pool'] = graph_pool
     data_args['graph_indices'] = graph_indices
     data_args['batch_nodes'] = batch_nodes
-    data_args = Namespace(**data_args)
+    data_args = util.Namespace(**data_args)
     print("Loading data... finished!")
     return data_args, args
 
@@ -157,7 +152,7 @@ def model_creation_util(parameterization,args):
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=num_batches_per_epoch, gamma=0.1)
     model_args = {'model':model, 'optimizer':optimizer, 'num_batches_per_epoch':num_batches_per_epoch, 'scheduler':scheduler}
     
-    return Namespace(**model_args)
+    return util.Namespace(**model_args)
 
 def single_epoch_training_util(data_args, model_args):
     model_args.model.train() # Turn on the train mode

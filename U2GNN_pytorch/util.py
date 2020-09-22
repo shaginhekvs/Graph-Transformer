@@ -24,6 +24,12 @@ class S2VGraph(object):
         self.edge_mat = 0
         self.max_neighbor = 0
 
+class Namespace:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+    
+    def update(self, **kwargs):
+        self.__dict__.update(kwargs)
 
 def load_data(dataset, degree_as_tag):
     '''
