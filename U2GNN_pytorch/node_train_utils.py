@@ -12,6 +12,7 @@ import time
 from .pytorch_U2GNN_UnSup import TransformerU2GNN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.sparse import coo_matrix
+from .data_utils import generate_synthetic_dataset
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 import statistics
@@ -36,6 +37,12 @@ def get_input_generator(args):
         g.ndata['train_mask'] = torch.from_numpy(np.ones((g.number_of_nodes(),), dtype=bool)).to(args.device)
         g.ndata['val_mask'] = torch.from_numpy(np.ones((g.number_of_nodes(),), dtype=bool)).to(args.device)
         g.ndata['test_mask'] = torch.from_numpy(np.ones((g.number_of_nodes(),), dtype=bool)).to(args.device)
+    elif args.dataset == "synth":
+        
+        output = generate_synthetic_dataset()
+        args.update(graph_obj = output[0])
+        return output
+        
     else:
         raise ValueError('Unknown dataset: {}'.format(args.dataset))
 
@@ -69,8 +76,6 @@ def get_input_generator(args):
     # remove self loop
     g = dgl.remove_self_loop(g)
     n_edges = g.number_of_edges()
-    
-    
     nx_g = data[0].to_networkx()
     args.update(graph_obj = nx_g)
     return nx_g, features, labels, train_mask, val_mask, test_mask
@@ -83,7 +88,7 @@ def get_batch_data_node(graphs, features, train_idx, args):
     input_x: neighbor matrix #num_nodes X # num neighbours + 1 
     input_y: 1D Tensor of where the nodes of selected_graph are, in the sparse graph matrix.
     '''
-    X_concat = features[train_idx].to(args.device)
+    #X_concat = features[train_idx].to(args.device)
     input_neighbors = []
     for val in range(args.vocab_size):
         value = val
@@ -180,6 +185,11 @@ def single_epoch_training_util(data_args, model_args):
 
     return total_loss
 
+
+def get_node_embeddings(model_args):
+    model = model_args.model
+    model.eval()
+    return model.ss.weight.to('cpu')
 
 def evaluate(epoch, data_args, model_args):
     model = model_args.model
