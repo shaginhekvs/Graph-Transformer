@@ -170,6 +170,7 @@ def data_loading_util(args):
 def model_creation_util(parameterization,args):
     print(args.feature_dim_size)
     print(args.vocab_size)
+    print("create model")
     args.update(sampler_type = "neighbor")
     model = TransformerU2GNN(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
                         dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
@@ -180,6 +181,7 @@ def model_creation_util(parameterization,args):
         num_batches_per_epoch = int((args.trainset_size- 1) // args.batch_size) + 1
     else:
         num_batches_per_epoch = 1
+    print("model done")
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=num_batches_per_epoch, gamma=0.1)
     model_args = {'model':model, 'optimizer':optimizer, 'num_batches_per_epoch':num_batches_per_epoch, 'scheduler':scheduler}
     
@@ -201,9 +203,11 @@ def single_epoch_training_util(data_args, model_args, args):
         X_concat, input_x, input_y = data_args.batch_nodes()
         model_args.optimizer.zero_grad()
         logits = model_args.model(X_concat, input_x, input_y)
+        print("forward pass done")
         loss = loss_func(args,logits)
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)
+        print("backward pass done")
+        #torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)
         model_args.optimizer.step()
         total_loss += loss.item()
 

@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import sys
 # script specific requirement in readme
-sys.path.insert(0,"/home/keshav/courses/master_thesis/Graph-Transformer/U2GNN_pytorch/log_uniform")
+sys.path.insert(0,"/home/ksingh/courses/master_thesis/Graph-Transformer/U2GNN_pytorch/log_uniform")
 
 from U2GNN_pytorch import node_train_utils
 from U2GNN_pytorch import util
