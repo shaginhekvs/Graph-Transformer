@@ -20,6 +20,7 @@ class GATEncoder(nn.Module):
 
     def __init__(self, n_feat, n_hid, n_latent, dropout, device):
         super(GATEncoder, self).__init__()
+        print('dropout is {}'.format(dropout))
         self.gc1 = GATConv(n_feat, n_hid, dropout, 0.2, device)
         self.gc2_mu = GATConv(n_hid, n_latent, dropout, 0.2, device)
         self.gc2_sig = GATConv(n_hid, n_latent, dropout, 0.2, device)
@@ -40,7 +41,7 @@ class TransformerGAT(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
                  num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', graph_obj = None, loss_type = 'default', adj_mat = None):
-        super(TransformerGCN, self).__init__()
+        super(TransformerGAT, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.ff_hidden_size = ff_hidden_size
         self.num_self_att_layers = num_self_att_layers #Each U2GNN layer consists of a number of self-attention layers
@@ -52,8 +53,8 @@ class TransformerGAT(nn.Module):
         self.adj_mat = adj_mat
         coo_adj = nx.to_scipy_sparse_matrix(graph_obj).tocoo()
         self.indices = torch.from_numpy(np.vstack((coo_adj.row, coo_adj.col)).astype(np.int64)).to(self.device)
-    
-        self.gcn_encoder = GCNEncoder(feature_dim_size, ff_hidden_size, 2 ,dropout, self.device)
+        print('dropout is {}'.format(dropout))
+        self.gcn_encoder = GATEncoder(feature_dim_size, ff_hidden_size, 2 ,dropout, self.device)
         self.dropouts = nn.Dropout(dropout)
         if(sampler_type == "default"): 
             self.ss = SampledSoftmax(self.vocab_size, self.sampled_num, self.feature_dim_size*self.num_U2GNN_layers, self.device)

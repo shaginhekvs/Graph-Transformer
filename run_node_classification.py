@@ -12,9 +12,10 @@ log_path = "~/courses/master_thesis/runs/u2gnn/{}"
 args={}
 args['dataset']="cora"
 args['batch_size']=-1
-args['num_epochs']=200
+args['num_epochs']=1000
 args['num_neighbors']=20
 args['loss_type'] = 'gae'
+args['model_type'] = 'gat'
 
 args = util.Namespace(**args)
 
@@ -40,11 +41,11 @@ def model_train_evaluate_get_embeds(parameterization):
     node_embeds = node_train_utils.get_node_embeddings(data_args, model_args, args)
     return node_embeds
 
-model_input = {"ff_hidden_size" : 1024, "num_timesteps": 5, "dropout":0.5, "sampled_num":50,"num_hidden_layers":4,"learning_rate":0.0001}
+model_input = {"ff_hidden_size" : 1024, "num_timesteps": 5, "dropout":0.5, "sampled_num":50,"num_hidden_layers":4,"learning_rate":0.01}
 
 embeds = model_train_evaluate_get_embeds(model_input).numpy()
 
 print('saving embeddings')
 
-with open(log_path.format("embeds.npy"), 'wb') as f:
+with open(log_path.format("{}_{}_embeds.npy".format(args.dataset,args.model_type)), 'wb') as f:
     np.save(f, embeds)
