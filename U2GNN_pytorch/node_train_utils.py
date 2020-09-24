@@ -1,4 +1,4 @@
-
+from torch.autograd import Variable
 import math
 import torch
 import torch.nn as nn
@@ -11,6 +11,8 @@ np.random.seed(123)
 import time
 import networkx as nx
 from .pytorch_U2GNN_UnSup import TransformerU2GNN
+from .gat_pytorch import TransformerGAT
+from .gcn_pytorch import TransformerGCN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.sparse import coo_matrix
 from .data_utils import generate_synthetic_dataset
@@ -19,11 +21,15 @@ from sklearn.linear_model import LogisticRegression
 import statistics
 
 def process_adj_mat(adj,args):
+    
     pos_weight = float(adj.shape[0] * adj.shape[0] - adj.sum()) / adj.sum()
     norm = adj.shape[0] * adj.shape[0] / float((adj.shape[0] * adj.shape[0] - adj.sum()) * 2)
     adj_label = adj.copy()
-    np.fill_diagonal(adj_label, 1)
+    #adj_label = Variable(torch.from_numpy(adj_label).float().to(args.device))
     adj_label = torch.from_numpy(adj_label).float().to(args.device)
+    #adj_norm = Variable(torch.from_numpy(nx.normalized_laplacian_matrix(args.graph_obj).todense()).float().to(args.device))
+    adj_norm = Variable(torch.from_numpy(adj.copy()).float().to(args.device))
+    args.update(adj_norm = adj_norm)
     weight_mask = adj_label.view(-1) == 1
     weight_tensor = torch.ones(weight_mask.size(0)).to(args.device)
     weight_tensor[weight_mask] = pos_weight
@@ -54,7 +60,7 @@ def get_input_generator(args):
         output = generate_synthetic_dataset()
         args.update(graph_obj = output[0])
         print(output[-1].shape)
-        process_adj_mat(output[-1][:,:,0], args)
+        process_adj_mat(output[-1], args)
         return output[:-1]
         
     else:
@@ -171,11 +177,23 @@ def model_creation_util(parameterization,args):
     print(args.feature_dim_size)
     print(args.vocab_size)
     print("create model")
+    print(args.model_type)
     args.update(sampler_type = "neighbor")
-    model = TransformerU2GNN(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
-                        dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
-                        vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
-                        num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj, loss_type = args.loss_type).to(args.device)
+    if(args.model_type == 'u2gnn'):
+        model = TransformerU2GNN(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
+                            dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
+                            vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
+                            num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj, loss_type = args.loss_type, adj_mat = args.adj_label).to(args.device)
+    elif(args.model_type == 'gcn'):
+        model = TransformerGCN(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
+                            dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
+                            vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
+                            num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj, loss_type = args.loss_type, adj_mat = args.adj_label).to(args.device)
+    elif (args.model_type == "gat"):
+        model = TransformerGAT(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
+                            dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
+                            vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
+                            num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj, loss_type = args.loss_type, adj_mat = args.adj_label).to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=parameterization['learning_rate'])
     if(args.batch_size>0):
         num_batches_per_epoch = int((args.trainset_size- 1) // args.batch_size) + 1
@@ -189,11 +207,15 @@ def model_creation_util(parameterization,args):
 
 def loss_func(args, logits):
     if(args.loss_type == 'default'):
-        loss = torch.sum(logits)
+        embeds = logits[0]
+        loss = torch.sum(embeds)
         
     elif(args.loss_type == 'gae'):
-        A_pred = torch.sigmoid(torch.matmul(logits, logits.t()))
+        embeds = logits[0]
+        A_pred = torch.sigmoid(torch.matmul(embeds, embeds.t()))
         loss = args.norm*F.binary_cross_entropy(A_pred.view(-1), args.adj_label.view(-1), weight = args.weight_tensor)
+    elif( args.loss_type == "contrastive"):
+        loss = logits[0]
     return loss
         
 def single_epoch_training_util(data_args, model_args, args):
@@ -202,7 +224,7 @@ def single_epoch_training_util(data_args, model_args, args):
     for _ in range(model_args.num_batches_per_epoch):
         X_concat, input_x, input_y = data_args.batch_nodes()
         model_args.optimizer.zero_grad()
-        logits = model_args.model(X_concat, input_x, input_y)
+        logits = model_args.model(X_concat, input_x, input_y, args)
         print("forward pass done")
         loss = loss_func(args,logits)
         loss.backward()
@@ -223,7 +245,10 @@ def get_node_embeddings(data_args, model_args, args):
         
     elif(args.loss_type == 'gae'):
         X_concat, input_x, input_y = data_args.batch_nodes()
-        return model(X_concat, input_x, input_y).detach().to('cpu')
+        return model(X_concat, input_x, input_y, args)[1].detach().to('cpu')
+    elif( args.loss_type == "contrastive"):
+        X_concat, input_x, input_y = data_args.batch_nodes()
+        return model(X_concat, input_x, input_y, args)[1].detach().to('cpu')
 
 def evaluate(epoch, data_args, model_args, args):
     model = model_args.model

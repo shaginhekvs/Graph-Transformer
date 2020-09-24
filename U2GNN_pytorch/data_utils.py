@@ -7,8 +7,11 @@ import pandas as pd
 import seaborn as sns
 import math
 import numpy.linalg as lg
+from scipy import sparse
 import scipy.linalg as slg
 import torch
+import sklearn
+from torch.autograd import Variable
 from sklearn.neighbors import kneighbors_graph
 from sklearn.metrics.cluster import normalized_mutual_info_score as nmi
 from sklearn.metrics.cluster import adjusted_rand_score as ri
@@ -268,10 +271,28 @@ def build_multilayer_graph(graph_type = 'gaussian', n=50, K=5, show_graph=True, 
     
     return L, y_true, K, L.shape[0], L.shape[2], X, W
 
+def make_sparse(sparse_mx):
+    """Convert a scipy sparse matrix to a torch sparse tensor."""
+    sparse_mx = sparse_mx.tocoo().astype(np.float32)
+    indices = torch.from_numpy(np.vstack((sparse_mx.row,
+                                          sparse_mx.col))).long()
+    values = torch.from_numpy(sparse_mx.data)
+    shape = torch.Size(sparse_mx.shape)
+    return torch.sparse.FloatTensor(indices, values, shape)
 
-
+def numpy_to_sparse(ary):
+    return sparse.csr_matrix(ary)
     
-def generate_synthetic_dataset(n=200,K=5):
+def preprocess_graph(adj):
+    adj = sp.coo_matrix(adj)
+    adj_ = adj + sp.eye(adj.shape[0])
+    rowsum = np.array(adj_.sum(1))
+    degree_mat_inv_sqrt = sp.diags(np.power(rowsum, -0.5).flatten())
+    adj_normalized = adj_.dot(degree_mat_inv_sqrt).transpose().dot(
+        degree_mat_inv_sqrt).tocoo()
+    return adj_normalized
+    
+def generate_synthetic_dataset(n=200,K=5, sparse = False):
 
     L, labels, K, n, S, X, adj = build_multilayer_graph(graph_type = 'gaussian', n=n, K=K, 
                                                 show_graph=True, seed_nb = 100)
@@ -290,5 +311,17 @@ def generate_synthetic_dataset(n=200,K=5):
     print([ n for n in G.neighbors(1)])
     print(n)
     print(adj.shape)
+    
+    if(sparse):
+        X = numpy_to_sparse(sklearn.preprocessing.scale(X[0]))
+        X = Variable(make_sparse(X[0]))
+        adj = numpy_to_sparse(adj[:,:,0])
+    
+    else:
+        #X = Variable(torch.from_numpy(sklearn.preprocessing.scale(X[0])).float())
+        #X = Variable(torch.from_numpy(feats).float())
+        #X = torch.from_numpy(feats).float()
+        X = torch.from_numpy(X[0]).float()
+        adj = adj[:,:,0]
 
-    return G, torch.from_numpy(X[0]).float(), torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    return G, X , torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
