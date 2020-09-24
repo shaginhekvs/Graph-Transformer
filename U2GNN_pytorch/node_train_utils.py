@@ -9,6 +9,7 @@ import dgl
 import numpy as np
 np.random.seed(123)
 import time
+import networkx as nx
 from .pytorch_U2GNN_UnSup import TransformerU2GNN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.sparse import coo_matrix
@@ -17,8 +18,19 @@ from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 import statistics
 
-
-
+def process_adj_mat(adj,args):
+    pos_weight = float(adj.shape[0] * adj.shape[0] - adj.sum()) / adj.sum()
+    norm = adj.shape[0] * adj.shape[0] / float((adj.shape[0] * adj.shape[0] - adj.sum()) * 2)
+    adj_label = adj.copy()
+    np.fill_diagonal(adj_label, 1)
+    adj_label = torch.from_numpy(adj_label).float().to(args.device)
+    weight_mask = adj_label.view(-1) == 1
+    weight_tensor = torch.ones(weight_mask.size(0)).to(args.device)
+    weight_tensor[weight_mask] = pos_weight
+    args.update(adj_label = adj_label)
+    args.update(norm = torch.tensor(norm))
+    args.update(weight_tensor = weight_tensor)
+    
 
 def get_input_generator(args):
       # load and preprocess dataset
@@ -41,7 +53,9 @@ def get_input_generator(args):
         
         output = generate_synthetic_dataset()
         args.update(graph_obj = output[0])
-        return output
+        print(output[-1].shape)
+        process_adj_mat(output[-1][:,:,0], args)
+        return output[:-1]
         
     else:
         raise ValueError('Unknown dataset: {}'.format(args.dataset))
@@ -74,10 +88,12 @@ def get_input_generator(args):
            test_mask.int().sum().item()))
 
     # remove self loop
-    g = dgl.remove_self_loop(g)
+    #g = dgl.remove_self_loop(g)
     n_edges = g.number_of_edges()
     nx_g = data[0].to_networkx()
     args.update(graph_obj = nx_g)
+    adj = nx.convert_matrix.to_numpy_matrix(nx_g)
+    process_adj_mat(adj, args)
     return nx_g, features, labels, train_mask, val_mask, test_mask
 
 
@@ -158,7 +174,7 @@ def model_creation_util(parameterization,args):
     model = TransformerU2GNN(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
                         dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
                         vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
-                        num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj).to(args.device)
+                        num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj, loss_type = args.loss_type).to(args.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=parameterization['learning_rate'])
     if(args.batch_size>0):
         num_batches_per_epoch = int((args.trainset_size- 1) // args.batch_size) + 1
@@ -169,15 +185,23 @@ def model_creation_util(parameterization,args):
     
     return Namespace(**model_args)
 
-
-def single_epoch_training_util(data_args, model_args):
+def loss_func(args, logits):
+    if(args.loss_type == 'default'):
+        loss = torch.sum(logits)
+        
+    elif(args.loss_type == 'gae'):
+        A_pred = torch.sigmoid(torch.matmul(logits, logits.t()))
+        loss = args.norm*F.binary_cross_entropy(A_pred.view(-1), args.adj_label.view(-1), weight = args.weight_tensor)
+    return loss
+        
+def single_epoch_training_util(data_args, model_args, args):
     model_args.model.train() # Turn on the train mode
     total_loss = 0.
     for _ in range(model_args.num_batches_per_epoch):
         X_concat, input_x, input_y = data_args.batch_nodes()
         model_args.optimizer.zero_grad()
         logits = model_args.model(X_concat, input_x, input_y)
-        loss = torch.sum(logits)
+        loss = loss_func(args,logits)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)
         model_args.optimizer.step()
@@ -186,17 +210,23 @@ def single_epoch_training_util(data_args, model_args):
     return total_loss
 
 
-def get_node_embeddings(model_args):
+def get_node_embeddings(data_args, model_args, args):
     model = model_args.model
     model.eval()
-    return model.ss.weight.to('cpu')
+    if(args.loss_type == 'default'):
+        
+        return model.ss.weight.to('cpu')
+        
+    elif(args.loss_type == 'gae'):
+        X_concat, input_x, input_y = data_args.batch_nodes()
+        return model(X_concat, input_x, input_y).detach().to('cpu')
 
-def evaluate(epoch, data_args, model_args):
+def evaluate(epoch, data_args, model_args, args):
     model = model_args.model
     model.eval() # Turn on the evaluation mode
     with torch.no_grad():
         # evaluating
-        node_embeddings = model.ss.weight.to('cpu')
+        node_embeddings = get_node_embeddings(data_args, model_args, args)
         acc_10folds = []
         for fold_idx in range(2):
             train_idx = data_args.batch_nodes.get_train_idx()
@@ -227,9 +257,9 @@ def train_evaluate(data_args,model_args,args):
     train_loss = 0.0
     for epoch in range(1, args.num_epochs + 1):
         epoch_start_time = time.time()
-        train_loss = single_epoch_training_util(data_args, model_args)
+        train_loss = single_epoch_training_util(data_args, model_args, args)
         cost_loss.append(train_loss)
-        mean_10folds, std_10folds = evaluate(epoch, data_args, model_args)
+        mean_10folds, std_10folds = evaluate(epoch, data_args, model_args, args)
         print('| epoch {:3d} | time: {:5.2f}s | loss {:5.2f} | mean {:5.2f} | std {:5.2f} | '.format(
                     epoch, (time.time() - epoch_start_time), train_loss, mean_10folds*100, std_10folds*100))
         if epoch > 5 and cost_loss[-1] > np.mean(cost_loss[-6:-1]):

@@ -9,7 +9,7 @@ from .sampled_neighbor import SampledNeighbor
 class TransformerU2GNN(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', graph_obj = None):
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', graph_obj = None, loss_type = 'default'):
         super(TransformerU2GNN, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.ff_hidden_size = ff_hidden_size
@@ -20,6 +20,7 @@ class TransformerU2GNN(nn.Module):
         self.device = device
         self.u2gnn_layers = torch.nn.ModuleList()
         self.em_layers = []
+        self.loss_type = loss_type
         for _ in range(self.num_U2GNN_layers):
             #self.em_layers.append(nn.Embedding(self.vocab_size, self.feature_dim_size))
             encoder_layers = TransformerEncoderLayer(d_model=self.feature_dim_size, nhead=1, dim_feedforward=self.ff_hidden_size, dropout=0.5) # embed_dim must be divisible by num_heads
@@ -45,7 +46,11 @@ class TransformerU2GNN(nn.Module):
         output_vectors = torch.cat(output_vectors, dim=1)
         output_vectors = self.dropouts(output_vectors)
 
-        logits = self.ss(output_vectors, input_y)
-
+        if(self.loss_type == 'default'):
+            logits = self.ss(output_vectors, input_y)
+        elif(self.loss_type == 'gae'):
+            logits = output_vectors
+        else:
+            raise ValueError('unknown loss_type {}'.format(self.loss_type))
         return logits
 

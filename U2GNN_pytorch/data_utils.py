@@ -235,7 +235,7 @@ def build_multilayer_graph(graph_type = 'gaussian', n=50, K=5, show_graph=True, 
             adj = lap.copy()
             lap = sgwt_raw_laplacian(lap)
             #adj = - lap.copy()
-            np.fill_diagonal(adj, 0)
+            #np.fill_diagonal(adj, 0)
             
             L[:,:,i] = lap
             W[:,:,i] = adj
@@ -274,7 +274,7 @@ def build_multilayer_graph(graph_type = 'gaussian', n=50, K=5, show_graph=True, 
 def generate_synthetic_dataset(n=200,K=5):
 
     L, labels, K, n, S, X, adj = build_multilayer_graph(graph_type = 'gaussian', n=n, K=K, 
-                                                show_graph=True, seed_nb = 60)
+                                                show_graph=True, seed_nb = 100)
 
     feats = np.eye(n,dtype = np.float64)
     G = nx.from_numpy_array(adj[:,:,0])
@@ -290,4 +290,5 @@ def generate_synthetic_dataset(n=200,K=5):
     print([ n for n in G.neighbors(1)])
     print(n)
     print(adj.shape)
-    return G, torch.from_numpy(feats).float(), torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask)
+
+    return G, torch.from_numpy(X[0]).float(), torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
