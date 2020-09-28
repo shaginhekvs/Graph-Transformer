@@ -7,10 +7,12 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from .sampled_softmax import  SampledSoftmax
 from .sampled_neighbor import SampledNeighbor
 from .contrastive_loss import GraphContrastiveLoss
+from .util import Namespace
+
 class TransformerU2GNN(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', graph_obj = None, loss_type = 'default', adj_mat = None):
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', graph_obj = None, loss_type = 'default', adj_mat = None,single_layer_only = True):
         super(TransformerU2GNN, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.self_attn = nn.MultiheadAttention(self.feature_dim_size, 1, dropout=dropout)
@@ -24,7 +26,7 @@ class TransformerU2GNN(nn.Module):
         self.em_layers = []
         self.adj_mat = adj_mat
         self.loss_type = loss_type
-        self.weight = nn.Parameter(torch.Tensor(vocab_size, 2))
+        self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
         '''
         encoder_layer1 = TransformerEncoderLayerSmaller(d_model=self.feature_dim_size, nhead=1, dim_feedforward=self.ff_hidden_size, dropout=dropout) # embed_dim must be divisible by num_heads
         self.u2gnn_layers.append(encoder_layer1)
@@ -67,24 +69,28 @@ class TransformerU2GNN(nn.Module):
         
         output_vectors = torch.stack(output_vectors,dim=1)
         print(output_vectors.shape)
-        output_vector = self.self_attn(output_vectors,output_vectors,output_vectors)[0]
+        output_vector = self.self_attn(output_vectors,output_vectors,output_vectors)[0] # attention between different layers.
         print(output_vector.shape)
         output_vector = torch.split(output_vector, split_size_or_sections=1, dim=1)[-1]
         output_vector = torch.squeeze(output_vector, dim = 1)
         print(output_vector.shape)
         #output_vectors = output_vectors[-1]
         
-        output_vector = torch.mul(self.weight, output_vector)
-        output_vector = self.dropouts(output_vector)
         
         
-        if(self.loss_type == 'default'):
-            logits = self.ss(output_vectors, input_y)
-        elif(self.loss_type == 'gae'):
-            logits = self.weight
-        elif(self.loss_type == "contrastive"):
-            logits = self.ss(self.weight, self.adj_mat)
+        if(single_layer_only):
+            output_vector = torch.mul(self.weight, output_vector)
+            output_vector = self.dropouts(output_vector)
+            if(self.loss_type == 'default'):
+                logits = self.ss(output_vectors, input_y)
+            elif(self.loss_type == 'gae'):
+                logits = self.weight
+            elif(self.loss_type == "contrastive"):
+                args_loss = Namespace(features = self.weight, mask = self.adj_mat)
+                logits = self.ss(args_loss)
+            else:
+                raise ValueError('unknown loss_type {}'.format(self.loss_type))
+            return logits, self.weight
         else:
-            raise ValueError('unknown loss_type {}'.format(self.loss_type))
-        return logits, self.weight.detach()
+            return _, output_vector
 

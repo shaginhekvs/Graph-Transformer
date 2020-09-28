@@ -19,11 +19,12 @@ from .data_utils import generate_synthetic_dataset
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 import statistics
+from python_multi_layer_siamese_u2gnn import TransformerMLU2GNN
 
 def process_adj_mat(adj,args):
     
-    pos_weight = float(adj.shape[0] * adj.shape[0] - adj.sum()) / adj.sum()
-    norm = adj.shape[0] * adj.shape[0] / float((adj.shape[0] * adj.shape[0] - adj.sum()) * 2)
+    pos_weight = float(adj.shape[0] * adj.shape[1] * adj.shape[2] - adj.sum()) / adj.sum()
+    norm = adj.shape[0] * adj.shape[1] * adj.shape[2] / float((adj.shape[0] * adj.shape[1] * adj.shape[2] - adj.sum()) * 2)
     adj_label = adj.copy()
     #adj_label = Variable(torch.from_numpy(adj_label).float().to(args.device))
     adj_label = torch.from_numpy(adj_label).float().to(args.device)
@@ -102,6 +103,17 @@ def get_input_generator(args):
     process_adj_mat(adj, args)
     return nx_g, features, labels, train_mask, val_mask, test_mask
 
+def sample_neighbors(graph, args):
+    
+    input_neighbors = []
+    for val in range(args.vocab_size):
+        value = val
+        neighbors_list = [n for n in graph.neighbors(value)]
+        if(neighbors_list):
+            input_neighbors.append([value]+list(np.random.choice(neighbors_list, args.num_neighbors, replace=True)))
+        else:
+            input_neighbors.append([value for _ in range(args.num_neighbors + 1)])
+    return input_neighbors
 
 def get_batch_data_node(graphs, features, train_idx, args):
     '''
@@ -111,17 +123,12 @@ def get_batch_data_node(graphs, features, train_idx, args):
     input_y: 1D Tensor of where the nodes of selected_graph are, in the sparse graph matrix.
     '''
     #X_concat = features[train_idx].to(args.device)
-    input_neighbors = []
-    for val in range(args.vocab_size):
-        value = val
-        neighbors_list = [n for n in graphs.neighbors(value)]
-        if(neighbors_list):
-            input_neighbors.append([value]+list(np.random.choice(neighbors_list, args.num_neighbors, replace=True)))
-        else:
-            input_neighbors.append([value for _ in range(args.num_neighbors + 1)])
+    input_neighbors_per_graph = []
+    for graph in graphs 
+        input_neighbors_per_graph.append(sample_neighbors)
 
-    input_x = np.array(input_neighbors)
-    input_x = torch.from_numpy(input_x).to(args.device)
+    input_x = np.array(input_neighbors_per_graph)
+    input_x = torch.from_numpy(input_x).transpose(0,2).to(args.device)
     input_y = torch.from_numpy(np.array([x for x in range(args.vocab_size)])).to(args.device)
     return features.to(args.device), input_x, input_y
 
@@ -180,15 +187,20 @@ def model_creation_util(parameterization,args):
     print(args.model_type)
     args.update(sampler_type = "neighbor")
     model_input_args = dict(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
-                            dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
-                            vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
-                            num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj, loss_type = args.loss_type, adj_mat = args.adj_label)
-    if(args.model_type == 'u2gnn'):
-        model = TransformerU2GNN(**model_input_args).to(args.device)
-    elif(args.model_type == 'gcn'):
-        model = TransformerGCN(**model_input_args).to(args.device)
-    elif (args.model_type == "gat"):
-        model = TransformerGAT(**model_input_args).to(args.device)
+                                dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
+                                vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
+                                num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj, loss_type = args.loss_type, adj_mat = args.adj_label,single_layer_only = args.single_layer_only, ml_model_type = args.ml_model_type)
+    
+    if(args.single_layer_only):
+        if(args.model_type == 'u2gnn'):
+            model = TransformerU2GNN(**model_input_args).to(args.device)
+        elif(args.model_type == 'gcn'):
+            model = TransformerGCN(**model_input_args).to(args.device)
+        elif (args.model_type == "gat"):
+            model = TransformerGAT(**model_input_args).to(args.device)
+    else:
+        model = TransformerMLU2GNN(**model_input_args).to(args.device)
+        
     optimizer = torch.optim.Adam(model.parameters(), lr=parameterization['learning_rate'])
     else:
         raise ValueError(' {} isnt a valid model'.format(args.model_type))
@@ -222,9 +234,14 @@ def single_epoch_training_util(data_args, model_args, args):
     for _ in range(model_args.num_batches_per_epoch):
         X_concat, input_x, input_y = data_args.batch_nodes()
         model_args.optimizer.zero_grad()
-        logits = model_args.model(X_concat, input_x, input_y, args)
-        print("forward pass done")
-        loss = loss_func(args,logits)
+        if(args.single_layer_only):
+            logits = model_args.model(X_concat, input_x, input_y, args)
+            print("forward pass done for single layer")
+            loss = loss_func(args,logits)
+        else:
+            loss = model_args.model(X_concat, input_x, input_y, args)
+            print("forward pass done for multi layers")
+            
         loss.backward()
         print("backward pass done")
         #torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)

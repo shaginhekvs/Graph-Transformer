@@ -298,7 +298,9 @@ def generate_synthetic_dataset(n=200,K=5, sparse = False):
                                                 show_graph=True, seed_nb = 100)
 
     feats = np.eye(n,dtype = np.float64)
-    G = nx.from_numpy_array(adj[:,:,0])
+    G_array = []
+    for i in range(adj.shape[-1]):
+        G_array.append(nx.from_numpy_array(adj[:,:,i]))
     train_mask = np.zeros(n,dtype = bool)
     random_indices = np.random.permutation(range(n))
     train_indices = random_indices[:int(0.6*n)]
@@ -308,8 +310,6 @@ def generate_synthetic_dataset(n=200,K=5, sparse = False):
     print(test_indices)
     test_mask[test_indices]= True
     print(test_mask)
-    print([ n for n in G.neighbors(1)])
-    print(n)
     print(adj.shape)
     
     if(sparse):
@@ -321,7 +321,8 @@ def generate_synthetic_dataset(n=200,K=5, sparse = False):
         #X = Variable(torch.from_numpy(sklearn.preprocessing.scale(X[0])).float())
         #X = Variable(torch.from_numpy(feats).float())
         #X = torch.from_numpy(feats).float()
-        X = torch.from_numpy(X[0]).float()
-        adj = adj[:,:,0]
+        X = torch.from_numpy(X).float()
+        X = X.permute(1,2,0)
+        adj = adj
 
-    return G, X , torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    return G_array, X , torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj

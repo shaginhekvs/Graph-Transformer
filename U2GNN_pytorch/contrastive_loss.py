@@ -9,7 +9,11 @@ class GraphContrastiveLoss(nn.Module):
         super().__init__()
         self.temperature = temperature
 
-    def forward(self, features, mask=None, labels=None, dist_fn=None):
+    def forward(self, args):
+        features = args.features 
+        mask=args.mask, 
+        labels=None if labels not in vars(args).keys() else args.labels
+        dist_fn=None if dist_fn not in vars(args).keys() else args.dist_fn
         """
         Args:
             features: embedding matrix of shape (batch_size, latent_dim)
