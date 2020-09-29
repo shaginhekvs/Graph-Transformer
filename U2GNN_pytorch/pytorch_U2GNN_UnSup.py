@@ -22,6 +22,7 @@ class TransformerU2GNN(nn.Module):
         self.vocab_size = vocab_size
         self.sampled_num = sampled_num
         self.device = device
+        self.single_layer_only = single_layer_only
         self.u2gnn_layers = torch.nn.ModuleList()
         self.em_layers = []
         self.adj_mat = adj_mat
@@ -68,17 +69,15 @@ class TransformerU2GNN(nn.Module):
         #output_vectors = torch.squeeze(output_Tr, dim=1)
         
         output_vectors = torch.stack(output_vectors,dim=1)
-        print(output_vectors.shape)
         output_vector = self.self_attn(output_vectors,output_vectors,output_vectors)[0] # attention between different layers.
-        print(output_vector.shape)
+        
         output_vector = torch.split(output_vector, split_size_or_sections=1, dim=1)[-1]
         output_vector = torch.squeeze(output_vector, dim = 1)
-        print(output_vector.shape)
         #output_vectors = output_vectors[-1]
+        #output_vector = torch.mul(self.weight, output_vector)
+        #output_vector = self.dropouts(output_vector)
         
-        
-        
-        if(single_layer_only):
+        if(self.single_layer_only):
             output_vector = torch.mul(self.weight, output_vector)
             output_vector = self.dropouts(output_vector)
             if(self.loss_type == 'default'):
@@ -92,5 +91,5 @@ class TransformerU2GNN(nn.Module):
                 raise ValueError('unknown loss_type {}'.format(self.loss_type))
             return logits, self.weight
         else:
-            return _, output_vector
+            return None, output_vector
 

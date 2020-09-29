@@ -19,7 +19,7 @@ from .data_utils import generate_synthetic_dataset
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 import statistics
-from python_multi_layer_siamese_u2gnn import TransformerMLU2GNN
+from .python_multi_layer_siamese_u2gnn import TransformerMLU2GNN
 
 def process_adj_mat(adj,args):
     
@@ -124,11 +124,11 @@ def get_batch_data_node(graphs, features, train_idx, args):
     '''
     #X_concat = features[train_idx].to(args.device)
     input_neighbors_per_graph = []
-    for graph in graphs 
-        input_neighbors_per_graph.append(sample_neighbors)
+    for graph in graphs:
+        input_neighbors_per_graph.append(sample_neighbors(graph,args))
 
     input_x = np.array(input_neighbors_per_graph)
-    input_x = torch.from_numpy(input_x).transpose(0,2).to(args.device)
+    input_x = torch.from_numpy(input_x).permute(1,2,0).to(args.device)
     input_y = torch.from_numpy(np.array([x for x in range(args.vocab_size)])).to(args.device)
     return features.to(args.device), input_x, input_y
 
@@ -198,13 +198,14 @@ def model_creation_util(parameterization,args):
             model = TransformerGCN(**model_input_args).to(args.device)
         elif (args.model_type == "gat"):
             model = TransformerGAT(**model_input_args).to(args.device)
+        else:
+            raise ValueError(' {} isnt a valid model'.format(args.model_type))
+
     else:
         model = TransformerMLU2GNN(**model_input_args).to(args.device)
         
     optimizer = torch.optim.Adam(model.parameters(), lr=parameterization['learning_rate'])
-    else:
-        raise ValueError(' {} isnt a valid model'.format(args.model_type))
-
+   
     if(args.batch_size>0):
         num_batches_per_epoch = int((args.trainset_size- 1) // args.batch_size) + 1
     else:
@@ -239,7 +240,7 @@ def single_epoch_training_util(data_args, model_args, args):
             print("forward pass done for single layer")
             loss = loss_func(args,logits)
         else:
-            loss = model_args.model(X_concat, input_x, input_y, args)
+            loss, _ = model_args.model(X_concat, input_x, input_y, args)
             print("forward pass done for multi layers")
             
         loss.backward()
