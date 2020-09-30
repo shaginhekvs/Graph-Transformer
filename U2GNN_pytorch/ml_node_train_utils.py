@@ -190,7 +190,7 @@ def model_creation_util(parameterization,args):
     model_input_args = dict(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
                                 dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
                                 vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
-                                num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, loss_type = args.loss_type, adj_mat = args.adj_label,single_layer_only = args.single_layer_only, ml_model_type = args.ml_model_type)
+                                num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, loss_type = args.loss_type, adj_mat = args.adj_label,single_layer_only = args.single_layer_only, ml_model_type = args.ml_model_type, projection_dim = args.projection_dim)
     
     if(args.single_layer_only):
         if(args.model_type == 'u2gnn'):

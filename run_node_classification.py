@@ -7,17 +7,18 @@ sys.path.insert(0,"/home/ksingh/courses/master_thesis/Graph-Transformer/U2GNN_py
 from U2GNN_pytorch import ml_node_train_utils
 from U2GNN_pytorch import util
 
-log_path = "~/courses/master_thesis/runs/u2gnn/{}"
+log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
 args['dataset']="cora"
 args['batch_size']=-1
-args['num_epochs']=2000
+args['num_epochs']=40
 args['num_neighbors']=10
 args['loss_type'] = 'contrastive'
 args['model_type'] = 'u2gnn'
 args['single_layer_only'] = False
 args['ml_model_type'] = 'siamese'
+args['projection_dim'] = 1
 
 args = util.Namespace(**args)
 
