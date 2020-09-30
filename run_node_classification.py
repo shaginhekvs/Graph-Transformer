@@ -28,22 +28,14 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed_all(123)
 args.update(device=device)
 
-args = util.Namespace(**args)
-
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print("using device {} for pytorch computation".format(device))
-if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(123)
-args.update(device=device)
 
 
 data_args, args = node_train_utils.data_loading_util(args)
 
 
 def model_train_evaluate(parameterization):
-    model_args = node_train_utils.model_creation_util(parameterization,args)
-    mean_acc, std = node_train_utils.train_evaluate(data_args,model_args,args)
+    model_args = ml_node_train_utils.model_creation_util(parameterization,args)
+    mean_acc, std = ml_node_train_utils.train_evaluate(data_args,model_args,args)
     return mean_acc
 
 def model_train_evaluate_get_embeds(parameterization):
