@@ -12,7 +12,7 @@ from .util import Namespace
 class TransformerU2GNN(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', graph_obj = None, loss_type = 'default', adj_mat = None,single_layer_only = True):
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', loss_type = 'default', adj_mat = None,single_layer_only = True):
         super(TransformerU2GNN, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.self_attn = nn.MultiheadAttention(self.feature_dim_size, 1, dropout=dropout)
@@ -42,8 +42,6 @@ class TransformerU2GNN(nn.Module):
         self.dropouts = nn.Dropout(dropout)
         if(sampler_type == "default"): 
             self.ss = SampledSoftmax(self.vocab_size, self.sampled_num, self.feature_dim_size*self.num_U2GNN_layers, self.device)
-        elif(sampler_type == "neighbor"):
-            self.ss = SampledNeighbor(self.vocab_size, self.sampled_num, self.feature_dim_size*self.num_U2GNN_layers, self.device, graph_obj)
         if(loss_type == 'contrastive'):
             self.ss = GraphContrastiveLoss()
         self.reset_parameters()

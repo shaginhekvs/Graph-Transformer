@@ -15,23 +15,21 @@ from .util import Namespace
 class TransformerMLU2GNN(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', graph_obj = None, loss_type = 'default', adj_mat = None, single_layer_only = False, ml_model_type = 'siamese'):
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', loss_type = 'default', adj_mat = None, single_layer_only = False, ml_model_type = 'siamese'):
         super(TransformerMLU2GNN, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.device = device
         self.self_attn = nn.MultiheadAttention(self.feature_dim_size, 1, dropout=dropout)
         self.u2gnn_model_per_layer = torch.nn.ModuleList()
         self.adj_mat = adj_mat
-        if(graph_obj == None or type(graph_obj) != list ) :
-            raise ( 'graph objects None or not a list of nx graphs as expected')
         self.ml_model_type =  ml_model_type
-        self.num_u2gnn_layers = 1 if ml_model_type == 'siamese' else len(graph_obj)
-        self.num_graph_layers = len(graph_obj)
+        self.num_u2gnn_layers = 1 if ml_model_type == 'siamese' else adj_mat.shape[-1]
+        self.num_graph_layers = adj_mat.shape[-1]
         self.loss_func = Loss_functions(loss_type)
         self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
         for i in range(self.num_u2gnn_layers):
             u2gnn_model = TransformerU2GNN(vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type, graph_obj[i], loss_type, adj_mat[i],single_layer_only = False)
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type, loss_type, adj_mat[i],single_layer_only = False)
             self.u2gnn_model_per_layer.append(u2gnn_model)
     
     def ml_loss_func(self,args, logits):

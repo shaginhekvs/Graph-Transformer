@@ -73,7 +73,7 @@ def get_input_generator(args):
     else:
         cuda = True
         #g = g.to(args.device)
-    features = g.ndata['feat']
+    features = g.ndata['feat'].unsqueeze( axis = -1)
     labels = g.ndata['label']
     train_mask = g.ndata['train_mask']
     print(sum(train_mask))
@@ -99,9 +99,10 @@ def get_input_generator(args):
     n_edges = g.number_of_edges()
     nx_g = data[0].to_networkx()
     args.update(graph_obj = nx_g)
-    adj = nx.convert_matrix.to_numpy_matrix(nx_g)
+    
+    adj = np.expand_dims(nx.convert_matrix.to_numpy_matrix(nx_g),axis = -1)
     process_adj_mat(adj, args)
-    return nx_g, features, labels, train_mask, val_mask, test_mask
+    return [nx_g], features, labels, train_mask, val_mask, test_mask
 
 def sample_neighbors(graph, args):
     
@@ -189,7 +190,7 @@ def model_creation_util(parameterization,args):
     model_input_args = dict(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
                                 dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
                                 vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
-                                num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, graph_obj = args.graph_obj, loss_type = args.loss_type, adj_mat = args.adj_label,single_layer_only = args.single_layer_only, ml_model_type = args.ml_model_type)
+                                num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, loss_type = args.loss_type, adj_mat = args.adj_label,single_layer_only = args.single_layer_only, ml_model_type = args.ml_model_type)
     
     if(args.single_layer_only):
         if(args.model_type == 'u2gnn'):
