@@ -291,7 +291,98 @@ def preprocess_graph(adj):
     adj_normalized = adj_.dot(degree_mat_inv_sqrt).transpose().dot(
         degree_mat_inv_sqrt).tocoo()
     return adj_normalized
+
+def generate_train_test_mask(num_nodes):
+    n = num_nodes
+    train_mask = np.zeros(n,dtype = bool)
+    random_indices = np.random.permutation(range(n))
+    train_indices = random_indices[:int(0.6*n)]
+    train_mask[train_indices] = True
+    test_mask = np.zeros(n,dtype = bool)
+    test_indices = random_indices[int(0.6*n):]
+    print(test_indices)
+    test_mask[test_indices]= True
+    return train_mask, test_mask
+
+def get_vicker_chan_dataset(multiplex_folder_path, size_x = 5):
+    vicker_data_folder = os.path.join(multiplex_folder_path, "Vickers-Chan Dataset" , "Dataset")
+    edges_file_path = os.path.join(vicker_data_folder,"Vickers-Chan-7thGraders_multiplex.edges" )
+    edges_df = pd.read_csv(edges_file_path, sep = " ", header = None,  names = ["layerId", "src", "dst", "weight"],dtype=int)
+    edges_df['src'] = edges_df['src'] - 1 # index IDs from 0
+    edges_df['dst'] = edges_df['dst'] - 1 # index IDs from 0
+    layers = [1, 2, 3]
+    graphs = []
+    adj_mats = []
+    sum_ = 0
+    for layer in layers : 
+        df = edges_df[edges_df['layerId'] == layer]
+        G= nx.from_pandas_edgelist(df, source='src', target='dst',create_using = nx.DiGraph)
+        graphs.append(G)
+        adj_mat = nx.adjacency_matrix(G).todense()
+        
+        adj_mats.append(np.array(adj_mat,dtype=int))
+        
+        sum_ += adj_mat.sum()
+        print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
+    print("# edges are {}".format( sum_))
     
+    n = max(edges_df["src"]) + 1
+    print("# nodes are {}".format( n ))
+    train_mask, test_mask = generate_train_test_mask(n)
+    random_X = np.random.normal(size = [n, size_x])
+    final_random_X = np.stack([random_X]* len(layers),axis = 2)
+    adj = np.stack(adj_mats, axis = 2)
+    labels = np.zeros(n,dtype = int) 
+    labels[12:] = 1 # 0 for boy from index 0 - 11 , 12 - 28 is for girl
+    return graphs, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+
+def add_edges_for_index(df, index_this, layer_id, G):
+    index_vote = df.iloc[index_this].loc["vote{}".format(layer_id)]
+    if(index_vote == "?"):
+        #print(index_vote)
+        return []
+        
+    other_votes = [(index_this, val ) for val in list((df.loc[df["vote{}".format(layer_id)] == index_vote]).index)]
+    #print(other_votes)
+    G.add_edges_from(other_votes)
+    return other_votes
+
+def get_congress_dataset(multiplex_folder_path, size_x = 5):
+    vicker_data_folder = os.path.join(multiplex_folder_path, "Congress Dataset" )
+    edges_file_path = os.path.join(vicker_data_folder,"house-votes-84.data")
+    layer_ids = list(range(0,16))
+    edges_df = pd.read_csv(edges_file_path, sep = ",", header = None,  names = ["layerId"] + ["vote{}".format(i) for i in layer_ids])
+    edges_df['labels'] = 0
+    edges_df.loc[edges_df['layerId'] == "republican",'labels'] = 1 
+    ids = np.array(list(range(len(edges_df))))
+    graphs_list = []
+    adj_mats = []
+    sum_ = 0
+    for layer in layer_ids:
+        G = nx.DiGraph()
+        G.add_nodes_from(ids)
+        for i in ids:
+            add_edges_for_index(edges_df, i, layer, G)
+            break
+        adj_mat = nx.adjacency_matrix(G).todense()
+        graphs_list.append(G)
+        adj_mats.append(np.array(adj_mat,dtype=int))
+        
+        sum_ += adj_mat.sum()
+        print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
+    
+    print("# edges are {}".format( sum_))
+    
+    n = len(edges_df)
+    print("# nodes are {}".format( n ))
+    train_mask, test_mask = generate_train_test_mask(n)
+    random_X = np.random.normal(size = [n, size_x])
+    final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
+    adj = np.stack(adj_mats, axis = 2)
+    labels = np.array(list(edges_df['labels']))
+    return graphs_list, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    
+
 def generate_synthetic_dataset(n=200,K=5, sparse = False):
 
     L, labels, K, n, S, X, adj = build_multilayer_graph(graph_type = 'gaussian', n=n, K=K, 
@@ -301,16 +392,7 @@ def generate_synthetic_dataset(n=200,K=5, sparse = False):
     G_array = []
     for i in range(adj.shape[-1]):
         G_array.append(nx.from_numpy_array(adj[:,:,i]))
-    train_mask = np.zeros(n,dtype = bool)
-    random_indices = np.random.permutation(range(n))
-    train_indices = random_indices[:int(0.6*n)]
-    train_mask[train_indices] = True
-    test_mask = np.zeros(n,dtype = bool)
-    test_indices = random_indices[int(0.6*n):]
-    print(test_indices)
-    test_mask[test_indices]= True
-    print(test_mask)
-    print(adj.shape)
+    train_mask, test_mask  = generate_train_test_mask(n)
     
     if(sparse):
         X = numpy_to_sparse(sklearn.preprocessing.scale(X[0]))
