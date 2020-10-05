@@ -3,6 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 torch.manual_seed(123)
 from dgl.data import CoraDataset, CitationGraphDataset, PPIDataset, KarateClub
 import dgl
@@ -15,7 +16,7 @@ from .gat_pytorch import TransformerGAT
 from .gcn_pytorch import TransformerGCN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.sparse import coo_matrix
-from .data_utils import generate_synthetic_dataset
+from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 import statistics
@@ -63,7 +64,31 @@ def get_input_generator(args):
         print(output[-1].shape)
         process_adj_mat(output[-1], args)
         return output[:-1]
-        
+    elif args.dataset == "vicker":
+        output = get_vicker_chan_dataset(args)
+        args.update(graph_obj = output[0])
+        process_adj_mat(output[-1], args)
+        return output[:-1]
+    elif args.dataset == "congress":
+        output = get_congress_dataset(args)
+        args.update(graph_obj = output[0])
+        process_adj_mat(output[-1], args)
+        return output[:-1]
+    elif args.dataset == "mammo":
+        output = get_mammo_dataset(args)
+        args.update(graph_obj = output[0])
+        process_adj_mat(output[-1], args)
+        return output[:-1]
+    elif args.dataset == "balance":
+        output = get_balance_dataset(args)
+        args.update(graph_obj = output[0])
+        process_adj_mat(output[-1], args)
+        return output[:-1]
+    elif args.dataset == "leskovec":
+        output = get_leskovec_dataset(args)
+        args.update(graph_obj = output[0])
+        process_adj_mat(output[-1], args)
+        return output[:-1]    
     else:
         raise ValueError('Unknown dataset: {}'.format(args.dataset))
 

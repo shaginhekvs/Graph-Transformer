@@ -15,7 +15,7 @@ from .gat_pytorch import TransformerGAT
 from .gcn_pytorch import TransformerGCN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.sparse import coo_matrix
-from .data_utils import generate_synthetic_dataset
+from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 import statistics
@@ -62,7 +62,7 @@ def get_input_generator(args):
         print(output[-1].shape)
         process_adj_mat(output[-1], args)
         return output[:-1]
-        
+    
     else:
         raise ValueError('Unknown dataset: {}'.format(args.dataset))
 

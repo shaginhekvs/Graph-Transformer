@@ -3,6 +3,8 @@ import networkx as nx
 from matplotlib import pyplot as plt
 import scipy
 import pickle
+from sklearn import preprocessing
+import os
 import pandas as pd
 import seaborn as sns
 import math
@@ -292,19 +294,20 @@ def preprocess_graph(adj):
         degree_mat_inv_sqrt).tocoo()
     return adj_normalized
 
-def generate_train_test_mask(num_nodes):
+def generate_train_test_mask(num_nodes, fraction = 0.6):
     n = num_nodes
     train_mask = np.zeros(n,dtype = bool)
     random_indices = np.random.permutation(range(n))
-    train_indices = random_indices[:int(0.6*n)]
+    train_indices = random_indices[:int(fraction*n)]
     train_mask[train_indices] = True
     test_mask = np.zeros(n,dtype = bool)
-    test_indices = random_indices[int(0.6*n):]
-    print(test_indices)
+    test_indices = random_indices[int(fraction*n):]
     test_mask[test_indices]= True
     return train_mask, test_mask
 
-def get_vicker_chan_dataset(multiplex_folder_path, size_x = 5):
+def get_vicker_chan_dataset(args):
+    multiplex_folder_path = args.multiplex_folder_path
+    size_x = args.size_x
     vicker_data_folder = os.path.join(multiplex_folder_path, "Vickers-Chan Dataset" , "Dataset")
     edges_file_path = os.path.join(vicker_data_folder,"Vickers-Chan-7thGraders_multiplex.edges" )
     edges_df = pd.read_csv(edges_file_path, sep = " ", header = None,  names = ["layerId", "src", "dst", "weight"],dtype=int)
@@ -328,26 +331,31 @@ def get_vicker_chan_dataset(multiplex_folder_path, size_x = 5):
     
     n = max(edges_df["src"]) + 1
     print("# nodes are {}".format( n ))
-    train_mask, test_mask = generate_train_test_mask(n)
+    train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
     random_X = np.random.normal(size = [n, size_x])
     final_random_X = np.stack([random_X]* len(layers),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
     labels = np.zeros(n,dtype = int) 
     labels[12:] = 1 # 0 for boy from index 0 - 11 , 12 - 28 is for girl
+    final_random_X = torch.from_numpy(final_random_X).float()
     return graphs, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
 
-def add_edges_for_index(df, index_this, layer_id, G):
-    index_vote = df.iloc[index_this].loc["vote{}".format(layer_id)]
+def add_edges_for_index(df, index_this, layer_id, G, col_prefix = "vote"):
+    index_vote = df.iloc[index_this].loc["{}{}".format(col_prefix, layer_id)]
     if(index_vote == "?"):
         #print(index_vote)
         return []
         
-    other_votes = [(index_this, val ) for val in list((df.loc[df["vote{}".format(layer_id)] == index_vote]).index)]
+    other_votes = [(index_this, val ) for val in list((df.loc[df["{}{}".format(col_prefix, layer_id)] == index_vote]).index)]
     #print(other_votes)
     G.add_edges_from(other_votes)
     return other_votes
 
-def get_congress_dataset(multiplex_folder_path, size_x = 5):
+def get_congress_dataset(args):
+    multiplex_folder_path = args.multiplex_folder_path
+    size_x = args.size_x
     vicker_data_folder = os.path.join(multiplex_folder_path, "Congress Dataset" )
     edges_file_path = os.path.join(vicker_data_folder,"house-votes-84.data")
     layer_ids = list(range(0,16))
@@ -375,13 +383,134 @@ def get_congress_dataset(multiplex_folder_path, size_x = 5):
     
     n = len(edges_df)
     print("# nodes are {}".format( n ))
-    train_mask, test_mask = generate_train_test_mask(n)
+    train_mask, test_mask = generate_train_test_mask(n,args.train_fraction)
     random_X = np.random.normal(size = [n, size_x])
     final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
     labels = np.array(list(edges_df['labels']))
+    final_random_X = torch.from_numpy(final_random_X).float()
     return graphs_list, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
     
+def get_mammo_dataset(args):
+    multiplex_folder_path = args.multiplex_folder_path
+    size_x = args.size_x
+    mammo_data_folder = os.path.join(multiplex_folder_path, "Mammogram Dataset" )
+    edges_file_path = os.path.join(mammo_data_folder,"mammographic_masses.data")
+    layer_ids = list(range(0,5))
+    layer_names= ["layer{}".format(i) for i in layer_ids]
+    edges_df = pd.read_csv(edges_file_path, sep = ",", header = None, names =  layer_names + ["labels"]  )
+    
+    ids = np.array(list(range(len(edges_df))))
+    graphs_list = []
+    adj_mats = []
+    sum_ = 0
+    for layer in layer_ids:
+        G = nx.DiGraph()
+        G.add_nodes_from(ids)
+        for i in ids:
+            add_edges_for_index(edges_df, i, layer, G, col_prefix="layer")
+            break
+        adj_mat = nx.adjacency_matrix(G).todense()
+        graphs_list.append(G)
+        adj_mats.append(np.array(adj_mat,dtype=int))
+        
+        sum_ += adj_mat.sum()
+        print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
+    
+    print("# edges are {}".format( sum_))
+    
+    n = len(edges_df)
+    print("# nodes are {}".format( n ))
+    train_mask, test_mask = generate_train_test_mask(n,args.train_fraction)
+    X = edges_df.iloc[ids].loc[:,layer_names].replace("?", -1).to_numpy().astype(float)
+    X = preprocessing.scale(X)
+    #random_X = np.random.normal(size = [n, size_x])
+    #final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
+    adj = np.stack(adj_mats, axis = 2)
+    labels = np.array(list(edges_df.iloc[ids]['labels'])).astype(int)
+    X = torch.from_numpy(X).float()
+    return graphs_list, X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    
+def get_balance_dataset(args):
+    multiplex_folder_path = args.multiplex_folder_path
+    size_x = args.size_x
+    mammo_data_folder = os.path.join(multiplex_folder_path, "Balance-Scale Dataset" )
+    edges_file_path = os.path.join(mammo_data_folder,"balance-scale.data")
+    layer_ids = list(range(0,4))
+    layer_names= ["layer{}".format(i) for i in layer_ids]
+    edges_df = pd.read_csv(edges_file_path, sep = ",", header = None, names = ["labels"]+ layer_names   )
+    print(edges_df.head())
+    ids = np.array(list(range(len(edges_df))))
+    graphs_list = []
+    adj_mats = []
+    sum_ = 0
+    for layer in layer_ids:
+        G = nx.DiGraph()
+        G.add_nodes_from(ids)
+        for i in ids:
+            add_edges_for_index(edges_df, i, layer, G, col_prefix="layer")
+            break
+        adj_mat = nx.adjacency_matrix(G).todense()
+        graphs_list.append(G)
+        adj_mats.append(np.array(adj_mat,dtype=int))
+        
+        sum_ += adj_mat.sum()
+        print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
+    
+    print("# edges are {}".format( sum_))
+    
+    n = len(edges_df)
+    print("# nodes are {}".format( n ))
+    train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    X = edges_df.iloc[ids].loc[:,layer_names].replace("?", -1).to_numpy().astype(float)
+    X = preprocessing.scale(X)
+    #random_X = np.random.normal(size = [n, size_x])
+    #final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
+    adj = np.stack(adj_mats, axis = 2)
+    edges_df["labels_style"] = edges_df["labels"].astype('category')
+    labels = np.array(list(edges_df.iloc[ids]['labels_style'].cat.codes))
+    X = torch.from_numpy(X).float()
+    return graphs_list, X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+
+ 
+def get_leskovec_dataset(args):
+    multiplex_folder_path= args.multiplex_folder_path
+    size_x = args.size_x
+    les_data_folder = os.path.join(multiplex_folder_path, "Leskovec-Ng Dataset" )
+    edges_file_path = os.path.join(les_data_folder,"Leskovec-Ng.multilayer.edges")
+    labels = np.loadtxt(os.path.join(les_data_folder,'Leskovec-Ng.multilayer.labels')).astype(np.int32)
+    
+    data = np.loadtxt(fname=edges_file_path).astype(np.int32)
+    layers = [0, 1, 2, 3]
+    graphs = []
+    adj_mats = []
+    sum_ = 0
+    edges_df = pd.read_csv(edges_file_path, sep = " ", header = None,  names = ["layerId", "src", "dst"],dtype=int)
+    print(edges_df['src'].min())
+    
+    for layer in layers : 
+        df = edges_df[edges_df['layerId'] == layer]
+        G= nx.from_pandas_edgelist(df, source='src', target='dst',create_using = nx.DiGraph)
+        graphs.append(G)
+        adj_mat = nx.adjacency_matrix(G).todense()
+        
+        adj_mats.append(np.array(adj_mat,dtype=int))
+        
+        sum_ += adj_mat.sum()
+        print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
+    print("# edges are {}".format( sum_))
+    
+    n = max(edges_df["src"].max(), edges_df["dst"].max())  + 1
+    print("# nodes are {}".format( n ))
+    train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    random_X = np.random.normal(size = [n, size_x])
+    final_random_X = np.stack([random_X]* len(layers),axis = 2)
+    adj = np.stack(adj_mats, axis = 2)
+    
+    final_random_X = torch.from_numpy(final_random_X).float()
+    return graphs, final_random_X, torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    
+
 
 def generate_synthetic_dataset(n=200,K=5, sparse = False):
 
