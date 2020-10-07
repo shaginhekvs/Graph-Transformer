@@ -6,6 +6,7 @@ sys.path.insert(0,"/home/ksingh/courses/master_thesis/Graph-Transformer/U2GNN_py
 
 from U2GNN_pytorch import ml_node_train_utils
 from U2GNN_pytorch import util
+from U2GNN_pytorch.metrics import print_evaluation_from_embeddings, print_evaluation
 
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
@@ -16,14 +17,14 @@ args['multiplex_folder_path'] = "/home/ksingh/courses/master_thesis/multiplex_da
 args['num_epochs']=100
 args["ng_data"] = "/home/ksingh/courses/master_thesis/Graph-Transformer/code_m/data/NGs.mat"
 args['num_neighbors']=10
-args['loss_type'] = 'gae'
+args['loss_type'] = 'contrastive'
 args['model_type'] = 'u2gnn'
 args['single_layer_only'] = False
 args['ml_model_type'] = 'multi'
 args['projection_dim'] = -1
 args['train_fraction'] = 0.02
-args['size_x'] = 10
-args['eval_type'] = 'kmeans'
+args['size_x'] = 60
+args['eval_type'] = 'logistic'
 args['synth_graph_type'] = "NGs"
 args = util.Namespace(**args)
 
