@@ -8,6 +8,7 @@ class GraphContrastiveLoss(nn.Module):
     def __init__(self, temperature=1):
         super().__init__()
         self.temperature = temperature
+        self.epsilon = torch.tensor(1e-10, dtype = torch.float)
 
     def forward(self, args):
         features = args.features 
@@ -63,9 +64,13 @@ class GraphContrastiveLoss(nn.Module):
         log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
         
         # compute mean of log-likelihood over positive
-        mean_log_prob_pos = (mask * log_prob).sum(1) / mask.sum(1)
+        numerator = (mask * log_prob).sum(1)
+        #print(numerator)
+        denominator = mask.sum(1) +self.epsilon
+        #print(denominator)
+        mean_log_prob_pos =  numerator / denominator
 
         # loss
         loss = - mean_log_prob_pos.mean()
-
+        #print(loss)
         return loss

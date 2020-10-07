@@ -10,15 +10,21 @@ from U2GNN_pytorch import util
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
-args['dataset']="cora"
+args['dataset']="synth"
 args['batch_size']=-1
-args['num_epochs']=40
+args['multiplex_folder_path'] = "/home/keshav/courses/master_thesis/multiplex_datasets"
+args['num_epochs']=100
+args["ng_data"] = "/home/keshav/courses/master_thesis/Graph-Transformer/code_m/data/NGs.mat"
 args['num_neighbors']=10
 args['loss_type'] = 'contrastive'
 args['model_type'] = 'u2gnn'
 args['single_layer_only'] = False
-args['ml_model_type'] = 'siamese'
-args['projection_dim'] = 1
+args['ml_model_type'] = 'multi'
+args['projection_dim'] = -1
+args['train_fraction'] = 0.3
+args['size_x'] = 5
+args['eval_type'] = 'kmeans'
+args['synth_graph_type'] = "NGs"
 
 args = util.Namespace(**args)
 
@@ -45,7 +51,7 @@ def model_train_evaluate_get_embeds(parameterization):
     node_embeds = ml_node_train_utils.get_node_embeddings(data_args, model_args, args)
     return node_embeds
 
-model_input = {"ff_hidden_size" : 1024, "num_timesteps": 5, "dropout":0.5, "sampled_num":50,"num_hidden_layers":4,"learning_rate":0.001}
+model_input = {"ff_hidden_size" : 1024, "num_timesteps": 10, "dropout":0.1, "sampled_num":50,"num_hidden_layers":5,"learning_rate":0.1}
 
 embeds = model_train_evaluate_get_embeds(model_input).numpy()
 

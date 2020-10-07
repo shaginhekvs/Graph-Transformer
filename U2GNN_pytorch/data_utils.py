@@ -118,8 +118,8 @@ def print_evaluation(y_true, L, K):
     return y
 
 
-def read_data(name):
-    data_file = scipy.io.loadmat('data/'+name+'.mat')
+def read_data(name, path):
+    data_file = scipy.io.loadmat(path)
     
     input_data = data_file['data']
     labels     = (data_file['truelabel'][0][0])
@@ -195,7 +195,7 @@ def draw_features(n_samples, n_dims, n_clusters, mean_scale, cov_scale, num=5):
     return tuple(clusters)
 
 
-def build_multilayer_graph(graph_type = 'gaussian', n=50, K=5, show_graph=True, seed_nb = 50):
+def build_multilayer_graph(graph_type = 'gaussian', n=50, K=5, show_graph=True, seed_nb = 50, ng_path = None):
     # n: total number of nodes
     # m: nb of clusters 
     # signals: dimension of signals 
@@ -269,7 +269,7 @@ def build_multilayer_graph(graph_type = 'gaussian', n=50, K=5, show_graph=True, 
                 plt.plot(data[:,0], data[:,1], markers[i], alpha=alpha, ms=size, mew=2)
                 
     if graph_type in ['NGs']:
-        W, L, X, y_true, K, _ = read_data(graph_type)
+        W, L, X, y_true, K, _ = read_data(graph_type, ng_path)
     
     return L, y_true, K, L.shape[0], L.shape[2], X, W
 
@@ -384,6 +384,8 @@ def get_congress_dataset(args):
     n = len(edges_df)
     print("# nodes are {}".format( n ))
     train_mask, test_mask = generate_train_test_mask(n,args.train_fraction)
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
     random_X = np.random.normal(size = [n, size_x])
     final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
@@ -422,6 +424,8 @@ def get_mammo_dataset(args):
     n = len(edges_df)
     print("# nodes are {}".format( n ))
     train_mask, test_mask = generate_train_test_mask(n,args.train_fraction)
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
     X = edges_df.iloc[ids].loc[:,layer_names].replace("?", -1).to_numpy().astype(float)
     X = preprocessing.scale(X)
     #random_X = np.random.normal(size = [n, size_x])
@@ -462,6 +466,8 @@ def get_balance_dataset(args):
     n = len(edges_df)
     print("# nodes are {}".format( n ))
     train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
     X = edges_df.iloc[ids].loc[:,layer_names].replace("?", -1).to_numpy().astype(float)
     X = preprocessing.scale(X)
     #random_X = np.random.normal(size = [n, size_x])
@@ -503,6 +509,8 @@ def get_leskovec_dataset(args):
     n = max(edges_df["src"].max(), edges_df["dst"].max())  + 1
     print("# nodes are {}".format( n ))
     train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
     random_X = np.random.normal(size = [n, size_x])
     final_random_X = np.stack([random_X]* len(layers),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
@@ -512,10 +520,10 @@ def get_leskovec_dataset(args):
     
 
 
-def generate_synthetic_dataset(n=200,K=5, sparse = False):
+def generate_synthetic_dataset(n=200,K=5, sparse = False, size_x = 8, graph_type = "gaussian",ng_path = None):
 
-    L, labels, K, n, S, X, adj = build_multilayer_graph(graph_type = 'gaussian', n=n, K=K, 
-                                                show_graph=True, seed_nb = 100)
+    L, labels, K, n, S, X, adj = build_multilayer_graph(graph_type = graph_type, n=n, K=K, 
+                                                show_graph=True, seed_nb = 100, ng_path = ng_path)
 
     feats = np.eye(n,dtype = np.float64)
     G_array = []
@@ -532,8 +540,23 @@ def generate_synthetic_dataset(n=200,K=5, sparse = False):
         #X = Variable(torch.from_numpy(sklearn.preprocessing.scale(X[0])).float())
         #X = Variable(torch.from_numpy(feats).float())
         #X = torch.from_numpy(feats).float()
+        if(graph_type == "gaussian"):
+            print(X.shape)
+            X = np.moveaxis(X, 0, 2)
+            #X = np.moveaxis(X,0,1)
+            #X = X.permute(1,2,0)
+            print(X.shape)
+            random_X = np.random.normal(size = [n,size_x])
+            final_random_X = np.stack( [random_X]* 4,axis = 2)
+            print(final_random_X.shape)
+            X = np.concatenate([X, final_random_X] , axis = 1)
+            print(X.shape)
+            
+        else:
+            X = np.stack([X] * 3, axis = 2)
+            print(X.shape)
+        
         X = torch.from_numpy(X).float()
-        X = X.permute(1,2,0)
         adj = adj
 
     return G_array, X , torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj

@@ -15,6 +15,7 @@ from .pytorch_U2GNN_UnSup import TransformerU2GNN
 from .gat_pytorch import TransformerGAT
 from .gcn_pytorch import TransformerGCN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from .metrics import print_evaluation_from_embeddings
 from scipy.sparse import coo_matrix
 from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset
 from .util import load_data, separate_data_idx, Namespace
@@ -59,7 +60,7 @@ def get_input_generator(args):
         g.ndata['test_mask'] = torch.from_numpy(np.ones((g.number_of_nodes(),), dtype=bool)).to(args.device)
     elif args.dataset == "synth":
         
-        output = generate_synthetic_dataset()
+        output = generate_synthetic_dataset(size_x = args.size_x, graph_type =args.synth_graph_type, ng_path = args.ng_data)
         args.update(graph_obj = output[0])
         print(output[-1].shape)
         process_adj_mat(output[-1], args)
@@ -300,17 +301,20 @@ def evaluate(epoch, data_args, model_args, args):
         node_embeddings = get_node_embeddings(data_args, model_args, args)
         acc_10folds = []
         for fold_idx in range(2):
-            train_idx = data_args.batch_nodes.get_train_idx()
-            test_idx = data_args.batch_nodes.get_test_idx()
-            train_node_embeddings = node_embeddings[train_idx]
-            
-            test_node_embeddings = node_embeddings[test_idx]
-            train_labels = data_args.batch_nodes.label[train_idx]
-            test_labels = data_args.batch_nodes.label[test_idx]
+            if(args.eval_type=="logistic"): 
+                train_idx = data_args.batch_nodes.get_train_idx()
+                test_idx = data_args.batch_nodes.get_test_idx()
+                train_node_embeddings = node_embeddings[train_idx]
 
-            cls = LogisticRegression(solver="liblinear", tol=0.001)
-            cls.fit(train_node_embeddings, train_labels)
-            ACC = cls.score(test_node_embeddings, test_labels)
+                test_node_embeddings = node_embeddings[test_idx]
+                train_labels = data_args.batch_nodes.label[train_idx]
+                test_labels = data_args.batch_nodes.label[test_idx]
+
+                cls = LogisticRegression(solver="liblinear", tol=0.001)
+                cls.fit(train_node_embeddings, train_labels)
+                ACC = cls.score(test_node_embeddings, test_labels)
+            elif(args.eval_type=="kmeans"):
+                ACC = print_evaluation_from_embeddings(y_true = data_args.batch_nodes.label.numpy(), embeddings = node_embeddings)
             acc_10folds.append(ACC)
             print('epoch ', epoch, ' fold ', fold_idx, ' acc ', ACC)
 
