@@ -4,6 +4,8 @@ from matplotlib import pyplot as plt
 import scipy
 import pickle
 from sklearn import preprocessing
+from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
 import os
 import pandas as pd
 import seaborn as sns
@@ -553,6 +555,7 @@ def generate_synthetic_dataset(n=200,K=5, sparse = False, size_x = 8, graph_type
             print(X.shape)
             
         else:
+            X = PCA(n_components=20).fit_transform(X)
             X = np.stack([X] * 3, axis = 2)
             print(X.shape)
         
