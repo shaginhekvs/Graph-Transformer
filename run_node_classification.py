@@ -22,7 +22,7 @@ args['single_layer_only'] = False
 args['ml_model_type'] = 'multi'
 args['projection_dim'] = -1
 args['train_fraction'] = 0.3
-args['size_x'] = 5
+args['size_x'] = 30
 args['eval_type'] = 'kmeans'
 args['synth_graph_type'] = "NGs"
 

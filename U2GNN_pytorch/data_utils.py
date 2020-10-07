@@ -555,7 +555,7 @@ def generate_synthetic_dataset(n=200,K=5, sparse = False, size_x = 8, graph_type
             print(X.shape)
             
         else:
-            X = PCA(n_components=20).fit_transform(X)
+            X = PCA(n_components=size_x).fit_transform(X)
             X = np.stack([X] * 3, axis = 2)
             print(X.shape)
         
