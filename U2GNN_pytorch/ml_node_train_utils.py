@@ -17,7 +17,7 @@ from .gcn_pytorch import TransformerGCN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from .metrics import print_evaluation_from_embeddings
 from scipy.sparse import coo_matrix
-from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset
+from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset, get_leskovec_true_dataset
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 import statistics
@@ -62,34 +62,39 @@ def get_input_generator(args):
         
         output = generate_synthetic_dataset(size_x = args.size_x, graph_type =args.synth_graph_type, ng_path = args.ng_data)
         args.update(graph_obj = output[0])
-        print(output[-1].shape)
+        args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)
-        return output[:-1]
+        return output[:-2]
     elif args.dataset == "vicker":
         output = get_vicker_chan_dataset(args)
         args.update(graph_obj = output[0])
+        args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)
-        return output[:-1]
+        return output[:-2]
     elif args.dataset == "congress":
         output = get_congress_dataset(args)
         args.update(graph_obj = output[0])
+        args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)
-        return output[:-1]
+        return output[:-2]
     elif args.dataset == "mammo":
         output = get_mammo_dataset(args)
         args.update(graph_obj = output[0])
+        args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)
-        return output[:-1]
+        return output[:-2]
     elif args.dataset == "balance":
         output = get_balance_dataset(args)
         args.update(graph_obj = output[0])
+        args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)
-        return output[:-1]
+        return output[:-2]
     elif args.dataset == "leskovec":
-        output = get_leskovec_dataset(args)
+        output = get_leskovec_true_dataset(args)
         args.update(graph_obj = output[0])
+        args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)
-        return output[:-1]    
+        return output[:-2]
     else:
         raise ValueError('Unknown dataset: {}'.format(args.dataset))
 

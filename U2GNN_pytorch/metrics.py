@@ -66,6 +66,19 @@ def accuracy_clustering(y_true, y_pred):
     
     return max(scores)
 
+def print_evaluation(y_true, L, K):
+
+    _, V   = scipy.linalg.eigh(L)
+    E      = V[:,:K]
+    y = KMeans(K, random_state=42).fit_predict(E)
+
+    acc_spec = accuracy_clustering(y_true, y)
+    pu_spec        = purity_score(y_true, y)
+    nmi_score_spec = nmi(y_true.ravel(), y.ravel())#, average_method='geometric')
+    ri_score_spec  = ri(y_true.ravel(), y.ravel())
+
+    print('Accuracy', acc_spec, 'Purity', pu_spec, 'NMI', nmi_score_spec, 'RI', ri_score_spec)
+    return y
 
 
 def print_evaluation_from_embeddings(y_true, embeddings, K=5):

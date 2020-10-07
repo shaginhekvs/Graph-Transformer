@@ -10,22 +10,21 @@ from U2GNN_pytorch import util
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
-args['dataset']="synth"
+args['dataset']="balance"
 args['batch_size']=-1
-args['multiplex_folder_path'] = "/home/ksingh/courses/master_thesis/multiplex_datasets"
+args['multiplex_folder_path'] = "/home/keshav/courses/master_thesis/multiplex_datasets"
 args['num_epochs']=100
-args["ng_data"] = "/home/ksingh/courses/master_thesis/Graph-Transformer/code_m/data/NGs.mat"
+args["ng_data"] = "/home/keshav/courses/master_thesis/Graph-Transformer/code_m/data/NGs.mat"
 args['num_neighbors']=10
-args['loss_type'] = 'contrastive'
+args['loss_type'] = 'gae'
 args['model_type'] = 'u2gnn'
 args['single_layer_only'] = False
 args['ml_model_type'] = 'multi'
 args['projection_dim'] = -1
-args['train_fraction'] = 0.3
-args['size_x'] = 30
+args['train_fraction'] = 0.02
+args['size_x'] = 10
 args['eval_type'] = 'kmeans'
 args['synth_graph_type'] = "NGs"
-
 args = util.Namespace(**args)
 
 
@@ -54,7 +53,10 @@ def model_train_evaluate_get_embeds(parameterization):
 model_input = {"ff_hidden_size" : 1024, "num_timesteps": 10, "dropout":0.1, "sampled_num":50,"num_hidden_layers":5,"learning_rate":0.1}
 
 embeds = model_train_evaluate_get_embeds(model_input).numpy()
-
+L_arithmetic = np.mean(args.laplacian, axis=2)
+print_evaluation(data_args.batch_nodes.label.numpy(), L_arithmetic, K = len(np.unique(data_args.batch_nodes.label.numpy())))
+L_gm = util.get_gm(args.laplacian, len(args.graph_obj),args.vocab_size)
+print_evaluation(data_args.batch_nodes.label.numpy(), L_gm, K = len(np.unique(data_args.batch_nodes.label.numpy())))
 print('saving embeddings')
 
 with open(log_path.format("{}_{}_ml_embeds.npy".format(args.dataset,args.model_type)), 'wb') as f:

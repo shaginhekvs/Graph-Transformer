@@ -2,6 +2,7 @@ import networkx as nx
 import numpy as np
 import random
 import scipy.sparse as sp
+import pyriemann
 from sklearn.model_selection import StratifiedKFold
 
 """Adapted from https://github.com/weihua916/powerful-gnns/blob/master/util.py"""
@@ -30,6 +31,17 @@ class Namespace:
     
     def update(self, **kwargs):
         self.__dict__.update(kwargs)
+
+def get_gm(L, S,n):
+    L_reg = np.zeros((S, n, n))
+
+    for i in range(S):
+        L_reg[i,:,:] = L[:,:,i] + 0.001*np.eye(n)
+    
+    
+    L_geometric_mean = pyriemann.utils.mean.mean_riemann(L_reg)
+    
+    return L_geometric_mean
 
 def load_data(dataset, degree_as_tag):
     '''

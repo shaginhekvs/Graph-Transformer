@@ -11,6 +11,7 @@ import pandas as pd
 import seaborn as sns
 import math
 import numpy.linalg as lg
+import scipy.io
 from scipy import sparse
 import scipy.linalg as slg
 import torch
@@ -296,6 +297,26 @@ def preprocess_graph(adj):
         degree_mat_inv_sqrt).tocoo()
     return adj_normalized
 
+
+def sgwt_raw_laplacian(B):
+    B         = B.T;
+    N         = B.shape[0] 
+    degrees   = B.sum(axis=1)
+    diagw     = np.diag(B)
+
+    nj2,ni2   = B.nonzero() 
+    w2        = np.extract(B!=0,B)
+    ndind     = (ni2!=nj2).nonzero()
+    ni        = ni2[ndind]
+    nj        = nj2[ndind]
+    w         = w2[ndind]
+    di        = np.arange(0,N)
+    #dL        = 1 - diagw / degrees       
+    #dL[degrees==0] = 0
+    #ndL       = -w / (np.sqrt(degrees[ni]*degrees[ni])).flatten() 
+    L         = csr_matrix((np.hstack((-w,degrees-diagw)), (np.hstack((ni,di)), np.hstack((nj,di)))), shape=(N, N)).toarray()
+
+    return L
 def generate_train_test_mask(num_nodes, fraction = 0.6):
     n = num_nodes
     train_mask = np.zeros(n,dtype = bool)
@@ -318,14 +339,17 @@ def get_vicker_chan_dataset(args):
     layers = [1, 2, 3]
     graphs = []
     adj_mats = []
+    Ls = []
     sum_ = 0
     for layer in layers : 
         df = edges_df[edges_df['layerId'] == layer]
         G= nx.from_pandas_edgelist(df, source='src', target='dst',create_using = nx.DiGraph)
         graphs.append(G)
-        adj_mat = nx.adjacency_matrix(G).todense()
+        adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
         
-        adj_mats.append(np.array(adj_mat,dtype=int))
+        adj_mats.append(adj_mat)
+      
+        Ls.append(sgwt_raw_laplacian(adj_mat))
         
         sum_ += adj_mat.sum()
         print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
@@ -339,10 +363,11 @@ def get_vicker_chan_dataset(args):
     random_X = np.random.normal(size = [n, size_x])
     final_random_X = np.stack([random_X]* len(layers),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
+    L = np.stack(Ls,axis = 2)
     labels = np.zeros(n,dtype = int) 
     labels[12:] = 1 # 0 for boy from index 0 - 11 , 12 - 28 is for girl
     final_random_X = torch.from_numpy(final_random_X).float()
-    return graphs, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    return graphs, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L ,adj
 
 def add_edges_for_index(df, index_this, layer_id, G, col_prefix = "vote"):
     index_vote = df.iloc[index_this].loc["{}{}".format(col_prefix, layer_id)]
@@ -366,6 +391,7 @@ def get_congress_dataset(args):
     edges_df.loc[edges_df['layerId'] == "republican",'labels'] = 1 
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
+    Ls = []
     adj_mats = []
     sum_ = 0
     for layer in layer_ids:
@@ -373,9 +399,10 @@ def get_congress_dataset(args):
         G.add_nodes_from(ids)
         for i in ids:
             add_edges_for_index(edges_df, i, layer, G)
-            break
-        adj_mat = nx.adjacency_matrix(G).todense()
+        adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
+
         graphs_list.append(G)
+        Ls.append(sgwt_raw_laplacian(adj_mat))
         adj_mats.append(np.array(adj_mat,dtype=int))
         
         sum_ += adj_mat.sum()
@@ -392,8 +419,9 @@ def get_congress_dataset(args):
     final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
     labels = np.array(list(edges_df['labels']))
+    L = np.stack(Ls,axis = 2)
     final_random_X = torch.from_numpy(final_random_X).float()
-    return graphs_list, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    return graphs_list, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask),L, adj
     
 def get_mammo_dataset(args):
     multiplex_folder_path = args.multiplex_folder_path
@@ -407,14 +435,16 @@ def get_mammo_dataset(args):
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
     adj_mats = []
+    Ls = []
     sum_ = 0
     for layer in layer_ids:
         G = nx.DiGraph()
         G.add_nodes_from(ids)
         for i in ids:
             add_edges_for_index(edges_df, i, layer, G, col_prefix="layer")
-            break
-        adj_mat = nx.adjacency_matrix(G).todense()
+
+        adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
+        Ls.append(sgwt_raw_laplacian(adj_mat))
         graphs_list.append(G)
         adj_mats.append(np.array(adj_mat,dtype=int))
         
@@ -433,9 +463,10 @@ def get_mammo_dataset(args):
     #random_X = np.random.normal(size = [n, size_x])
     #final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
+    L = np.stack(Ls,axis = 2)
     labels = np.array(list(edges_df.iloc[ids]['labels'])).astype(int)
     X = torch.from_numpy(X).float()
-    return graphs_list, X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    return graphs_list, X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L, adj
     
 def get_balance_dataset(args):
     multiplex_folder_path = args.multiplex_folder_path
@@ -449,16 +480,18 @@ def get_balance_dataset(args):
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
     adj_mats = []
+    Ls = []
     sum_ = 0
     for layer in layer_ids:
         G = nx.DiGraph()
         G.add_nodes_from(ids)
         for i in ids:
             add_edges_for_index(edges_df, i, layer, G, col_prefix="layer")
-            break
-        adj_mat = nx.adjacency_matrix(G).todense()
+
+        adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
+        Ls.append(sgwt_raw_laplacian(adj_mat))
         graphs_list.append(G)
-        adj_mats.append(np.array(adj_mat,dtype=int))
+        adj_mats.append(np.array(adj_mat))
         
         sum_ += adj_mat.sum()
         print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
@@ -474,11 +507,17 @@ def get_balance_dataset(args):
     X = preprocessing.scale(X)
     #random_X = np.random.normal(size = [n, size_x])
     #final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
+    X = np.stack([X]* len(layer_ids),axis = 2)
+    random_X = np.random.normal(size = [n,size_x])
+    final_random_X = np.stack( [random_X]* 4,axis = 2)
+    X = np.concatenate([X, final_random_X] , axis = 1)
     adj = np.stack(adj_mats, axis = 2)
+    L = np.stack(Ls,axis = 2)
     edges_df["labels_style"] = edges_df["labels"].astype('category')
     labels = np.array(list(edges_df.iloc[ids]['labels_style'].cat.codes))
     X = torch.from_numpy(X).float()
-    return graphs_list, X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    print(X.shape)
+    return graphs_list, X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L, adj
 
  
 def get_leskovec_dataset(args):
@@ -493,6 +532,7 @@ def get_leskovec_dataset(args):
     graphs = []
     adj_mats = []
     sum_ = 0
+    Ls = []
     edges_df = pd.read_csv(edges_file_path, sep = " ", header = None,  names = ["layerId", "src", "dst"],dtype=int)
     print(edges_df['src'].min())
     
@@ -500,10 +540,10 @@ def get_leskovec_dataset(args):
         df = edges_df[edges_df['layerId'] == layer]
         G= nx.from_pandas_edgelist(df, source='src', target='dst',create_using = nx.DiGraph)
         graphs.append(G)
-        adj_mat = nx.adjacency_matrix(G).todense()
-        
-        adj_mats.append(np.array(adj_mat,dtype=int))
-        
+
+        adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
+        adj_mats.append(adj_mat)
+        Ls.append(sgwt_raw_laplacian(adj_mat))
         sum_ += adj_mat.sum()
         print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
     print("# edges are {}".format( sum_))
@@ -516,11 +556,49 @@ def get_leskovec_dataset(args):
     random_X = np.random.normal(size = [n, size_x])
     final_random_X = np.stack([random_X]* len(layers),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
-    
+    L = np.stack(Ls,axis = 2)
     final_random_X = torch.from_numpy(final_random_X).float()
-    return graphs, final_random_X, torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
-    
+    return graphs, final_random_X, torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L, adj
 
+
+def process_adj_mat(A):
+    A[A>0] = 1
+    return A.astype(int)
+
+def get_leskovec_true_dataset(args):
+    multiplex_folder_path= args.multiplex_folder_path
+    size_x = args.size_x
+    data_folder = os.path.join(multiplex_folder_path, "Leskovec-Ng Dataset" )
+    file_names = ["LN_2000_2004.mat", "LN_2005_2009.mat" , "LN_2010_2014.mat"]
+    adj_mats = []
+    G = []
+    Ls = []
+    sum_ = 0
+    for i, file  in enumerate(file_names):
+        
+        mat1 = scipy.io.loadmat( os.path.join(data_folder, file))
+        
+        adj = process_adj_mat(mat1["A{}".format(i+2)])
+        Ls.append(sgwt_raw_laplacian(adj))
+        adj_mats.append(adj)
+        print("# edges in layer {} are {}".format( i + 1, adj.sum()))
+        sum_ += adj.sum()
+        G.append(nx.convert_matrix.from_numpy_array(adj, create_using = nx.DiGraph))
+    labels_mat = scipy.io.loadmat( os.path.join(data_folder, "LN_true.mat"))
+    labels= np.array(labels_mat["s_LNG"].flatten(), dtype = int)
+    print("# edges are {}".format( sum_))
+    n = adj_mats[0].shape[0]
+    L = np.stack(Ls,axis = 2)
+    train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    random_X = np.random.normal(size = [n, size_x])
+    final_random_X = np.stack([random_X]* len(file_names),axis = 2)
+    adj = np.stack(adj_mats, axis = 2)
+    final_random_X = torch.from_numpy(final_random_X).float()
+    print("# nodes are {}".format( n ))
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
+    return G, final_random_X, torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask),L, adj
+    
 
 def generate_synthetic_dataset(n=200,K=5, sparse = False, size_x = 8, graph_type = "gaussian",ng_path = None):
 
@@ -562,4 +640,4 @@ def generate_synthetic_dataset(n=200,K=5, sparse = False, size_x = 8, graph_type
         X = torch.from_numpy(X).float()
         adj = adj
 
-    return G_array, X , torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), adj
+    return G_array, X , torch.from_numpy(labels).int(), torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L, adj
