@@ -427,8 +427,8 @@ def get_congress_dataset(args):
     L = np.stack(Ls,axis = 2)
     final_random_X = torch.from_numpy(final_random_X).float()
     if(args.save_input_list):
-        np.savetxt(os.path.join(vicker_data_folder,"congress_multiple_edges.txt"),edges_np)
-        np.savetxt(os.path.join(vicker_data_folder,"congress_labels.txt"),labels)
+        np.savetxt(os.path.join(vicker_data_folder,"congress_multiple_edges.txt"),edges_np,fmt='%i')
+        np.savetxt(os.path.join(vicker_data_folder,"congress_labels.txt"),labels,fmt='%i')
         print("saved to {}".format(vicker_data_folder))
     return graphs_list, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask),L, adj
     
