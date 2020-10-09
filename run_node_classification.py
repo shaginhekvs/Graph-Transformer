@@ -26,6 +26,7 @@ args['train_fraction'] = 0.3
 args['size_x'] = 50
 args['eval_type'] = 'logistic'
 args['synth_graph_type'] = "NGs"
+args['save_input_list'] = True
 args = util.Namespace(**args)
 
 
