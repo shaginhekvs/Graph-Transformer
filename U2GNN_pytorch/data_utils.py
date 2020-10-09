@@ -372,8 +372,9 @@ def get_vicker_chan_dataset(args):
 def add_edges_for_index(df, index_this, layer_id, G, col_prefix = "vote"):
     index_vote = df.iloc[index_this].loc["{}{}".format(col_prefix, layer_id)]
     if(index_vote == "?"):
+        pass
         #print(index_vote)
-        return []
+        #return []
         
     other_votes = [(index_this, val ) for val in list((df.loc[df["{}{}".format(col_prefix, layer_id)] == index_vote]).index)]
     #print(other_votes)
@@ -388,7 +389,7 @@ def get_congress_dataset(args):
     layer_ids = list(range(0,16))
     edges_df = pd.read_csv(edges_file_path, sep = ",", header = None,  names = ["layerId"] + ["vote{}".format(i) for i in layer_ids])
     edges_df['labels'] = 0
-    #layer_ids = [0,1,2,3]
+    layer_ids = [0,1,2,3]
     edges_df.loc[edges_df['layerId'] == "republican",'labels'] = 1 
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
