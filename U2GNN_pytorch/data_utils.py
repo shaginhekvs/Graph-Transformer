@@ -440,7 +440,7 @@ def get_mammo_dataset(args):
     layer_ids = list(range(0,5))
     layer_names= ["layer{}".format(i) for i in layer_ids]
     edges_df = pd.read_csv(edges_file_path, sep = ",", header = None, names =  layer_names + ["labels"]  )
-    
+    edges = []
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
     adj_mats = []
@@ -453,6 +453,9 @@ def get_mammo_dataset(args):
             add_edges_for_index(edges_df, i, layer, G, col_prefix="layer")
 
         adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
+        idx_nonzeros = np.nonzero(adj_mat)
+        for (src,dst) in zip(idx_nonzeros[0],idx_nonzeros[1]):
+            edges.append([layer,src,dst])
         Ls.append(sgwt_raw_laplacian(adj_mat))
         graphs_list.append(G)
         adj_mats.append(np.array(adj_mat,dtype=int))
@@ -464,6 +467,7 @@ def get_mammo_dataset(args):
     
     n = len(edges_df)
     print("# nodes are {}".format( n ))
+    edges_np = np.array(edges,dtype=int)    
     train_mask, test_mask = generate_train_test_mask(n,args.train_fraction)
     print("# train samples are {}".format(train_mask.sum()))
     print("# test samples are {}".format(test_mask.sum()))
@@ -477,6 +481,10 @@ def get_mammo_dataset(args):
     L = np.stack(Ls,axis = 2)
     labels = np.array(list(edges_df.iloc[ids]['labels'])).astype(int)
     X = torch.from_numpy(X).float()
+    if(args.save_input_list):
+        np.savetxt(os.path.join(mammo_data_folder,"mammo_multiple_edges.txt"),edges_np,fmt='%i')
+        np.savetxt(os.path.join(mammo_data_folder,"mammo_labels.txt"),labels,fmt='%i')
+        print("saved to {}".format(mammo_data_folder))
     return graphs_list, X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L, adj
     
 def get_balance_dataset(args):
