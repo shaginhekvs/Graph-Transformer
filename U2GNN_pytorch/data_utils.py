@@ -393,8 +393,10 @@ def get_congress_dataset(args):
     edges_df.loc[edges_df['layerId'] == "republican",'labels'] = 1 
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
+    n = len(edges_df)
     Ls = []
     adj_mats = []
+    edges = []
     sum_ = 0
     for layer in layer_ids:
         G = nx.DiGraph()
@@ -402,17 +404,18 @@ def get_congress_dataset(args):
         for i in ids:
             add_edges_for_index(edges_df, i, layer, G)
         adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
-
+        
         graphs_list.append(G)
         Ls.append(sgwt_raw_laplacian(adj_mat))
         adj_mats.append(np.array(adj_mat,dtype=int))
-        
+        idx_nonzeros = np.nonzero(adj_mat)
+        for (src,dst) in zip(idx_nonzeros[0],idx_nonzeros[1]):
+            edges.append([layer,src,dst])
         sum_ += adj_mat.sum()
         print("# edges in layer {} are {}".format( layer, adj_mat.sum()))
     
     print("# edges are {}".format( sum_))
-    
-    n = len(edges_df)
+    edges_np = np.array(edges,dtype=int)    
     print("# nodes are {}".format( n ))
     train_mask, test_mask = generate_train_test_mask(n,args.train_fraction)
     print("# train samples are {}".format(train_mask.sum()))
@@ -420,9 +423,13 @@ def get_congress_dataset(args):
     random_X = np.random.normal(size = [n, size_x])
     final_random_X = np.stack([random_X]* len(layer_ids),axis = 2)
     adj = np.stack(adj_mats, axis = 2)
-    labels = np.array(list(edges_df['labels']))
+    labels = np.array(list(edges_df['labels']),dtype=int)
     L = np.stack(Ls,axis = 2)
     final_random_X = torch.from_numpy(final_random_X).float()
+    if(args.save_input_list):
+        np.savetxt(os.path.join(vicker_data_folder,"congress_multiple_edges.txt"),edges_np)
+        np.savetxt(os.path.join(vicker_data_folder,"congress_labels.txt"),labels)
+        print("saved to {}".format(vicker_data_folder))
     return graphs_list, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask),L, adj
     
 def get_mammo_dataset(args):
