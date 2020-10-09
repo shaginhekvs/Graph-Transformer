@@ -462,7 +462,7 @@ def get_mammo_dataset(args):
     X = preprocessing.scale(X)
     X = np.stack([X]* len(layer_ids),axis = 2)
     random_X = np.random.normal(size = [n,size_x])
-    final_random_X = np.stack( [random_X]* 4,axis = 2)
+    final_random_X = np.stack( [random_X]* len(layer_ids),axis = 2)
     X = np.concatenate([X, final_random_X] , axis = 1)
     adj = np.stack(adj_mats, axis = 2)
     L = np.stack(Ls,axis = 2)
