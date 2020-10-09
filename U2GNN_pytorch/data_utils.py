@@ -388,6 +388,7 @@ def get_congress_dataset(args):
     layer_ids = list(range(0,16))
     edges_df = pd.read_csv(edges_file_path, sep = ",", header = None,  names = ["layerId"] + ["vote{}".format(i) for i in layer_ids])
     edges_df['labels'] = 0
+    layer_ids = [0,1,2,3]
     edges_df.loc[edges_df['layerId'] == "republican",'labels'] = 1 
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
