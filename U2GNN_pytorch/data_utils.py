@@ -622,7 +622,7 @@ def get_leskovec_true_dataset(args):
         sum_ += adj.sum()
         G.append(nx.convert_matrix.from_numpy_array(adj, create_using = nx.DiGraph))
     labels_mat = scipy.io.loadmat( os.path.join(data_folder, "LN_true.mat"))
-    labels= np.array(labels_mat["s_LNG"].flatten(), dtype = int)
+    labels= np.array(labels_mat["s_LNG"].flatten(), dtype = int) - 1
     print("# edges are {}".format( sum_))
     n = adj_mats[0].shape[0]
     L = np.stack(Ls,axis = 2)
