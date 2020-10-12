@@ -498,6 +498,7 @@ def get_balance_dataset(args):
     print(edges_df.head())
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
+    edges = []
     adj_mats = []
     Ls = []
     sum_ = 0
@@ -508,6 +509,9 @@ def get_balance_dataset(args):
             add_edges_for_index(edges_df, i, layer, G, col_prefix="layer")
 
         adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
+        idx_nonzeros = np.nonzero(adj_mat)
+        for (src,dst) in zip(idx_nonzeros[0],idx_nonzeros[1]):
+            edges.append([layer,src,dst])
         Ls.append(sgwt_raw_laplacian(adj_mat))
         graphs_list.append(G)
         adj_mats.append(np.array(adj_mat))
@@ -536,6 +540,12 @@ def get_balance_dataset(args):
     labels = np.array(list(edges_df.iloc[ids]['labels_style'].cat.codes))
     X = torch.from_numpy(X).float()
     print(X.shape)
+    if(args.save_input_list):
+        edges_np = np.array(edges,dtype=int)    
+        np.savetxt(os.path.join(mammo_data_folder,"balance_multiple_edges.txt"),edges_np,fmt='%i')
+        np.savetxt(os.path.join(mammo_data_folder,"balance_labels.txt"),labels,fmt='%i')
+        print("saved to {}".format(mammo_data_folder))
+    
     return graphs_list, X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L, adj
 
  
@@ -561,6 +571,9 @@ def get_leskovec_dataset(args):
         graphs.append(G)
 
         adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
+        idx_nonzeros = np.nonzero(adj_mat)
+        for (src,dst) in zip(idx_nonzeros[0],idx_nonzeros[1]):
+            edges.append([layer,src,dst])
         adj_mats.append(adj_mat)
         Ls.append(sgwt_raw_laplacian(adj_mat))
         sum_ += adj_mat.sum()
@@ -577,6 +590,7 @@ def get_leskovec_dataset(args):
     adj = np.stack(adj_mats, axis = 2)
     L = np.stack(Ls,axis = 2)
     final_random_X = torch.from_numpy(final_random_X).float()
+
     return graphs, final_random_X, torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L, adj
 
 
@@ -590,6 +604,7 @@ def get_leskovec_true_dataset(args):
     data_folder = os.path.join(multiplex_folder_path, "Leskovec-Ng Dataset" )
     file_names = ["LN_2000_2004.mat", "LN_2005_2009.mat" , "LN_2010_2014.mat"]
     adj_mats = []
+    edges = []
     G = []
     Ls = []
     sum_ = 0
@@ -600,6 +615,9 @@ def get_leskovec_true_dataset(args):
         adj = process_adj_mat(mat1["A{}".format(i+2)])
         Ls.append(sgwt_raw_laplacian(adj))
         adj_mats.append(adj)
+        idx_nonzeros = np.nonzero(adj)
+        for (src,dst) in zip(idx_nonzeros[0],idx_nonzeros[1]):
+            edges.append([i,src,dst])
         print("# edges in layer {} are {}".format( i + 1, adj.sum()))
         sum_ += adj.sum()
         G.append(nx.convert_matrix.from_numpy_array(adj, create_using = nx.DiGraph))
@@ -616,6 +634,11 @@ def get_leskovec_true_dataset(args):
     print("# nodes are {}".format( n ))
     print("# train samples are {}".format(train_mask.sum()))
     print("# test samples are {}".format(test_mask.sum()))
+    if(args.save_input_list):
+        edges_np = np.array(edges,dtype=int)    
+        np.savetxt(os.path.join(data_folder,"leskovec_multiple_edges.txt"),edges_np,fmt='%i')
+        np.savetxt(os.path.join(data_folder,"leskovec_labels.txt"),labels,fmt='%i')
+        print("saved to {}".format(data_folder))
     return G, final_random_X, torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask),L, adj
     
 
