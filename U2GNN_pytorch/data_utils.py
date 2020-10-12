@@ -338,6 +338,7 @@ def get_vicker_chan_dataset(args):
     edges_df['dst'] = edges_df['dst'] - 1 # index IDs from 0
     layers = [1, 2, 3]
     graphs = []
+    edges = []
     adj_mats = []
     Ls = []
     sum_ = 0
@@ -348,7 +349,9 @@ def get_vicker_chan_dataset(args):
         adj_mat = np.array(nx.adjacency_matrix(G).todense(),dtype=int)
         
         adj_mats.append(adj_mat)
-      
+        idx_nonzeros = np.nonzero(adj_mat)
+        for (src,dst) in zip(idx_nonzeros[0],idx_nonzeros[1]):
+            edges.append([layer,src,dst])
         Ls.append(sgwt_raw_laplacian(adj_mat))
         
         sum_ += adj_mat.sum()
@@ -367,6 +370,12 @@ def get_vicker_chan_dataset(args):
     labels = np.zeros(n,dtype = int) 
     labels[12:] = 1 # 0 for boy from index 0 - 11 , 12 - 28 is for girl
     final_random_X = torch.from_numpy(final_random_X).float()
+    if(args.save_input_list):
+        edges_np = np.array(edges,dtype=int)    
+        np.savetxt(os.path.join(vicker_data_folder,"vicker_multiple_edges.txt"),edges_np,fmt='%i')
+        np.savetxt(os.path.join(vicker_data_folder,"vicker_labels.txt"),labels,fmt='%i')
+        print("saved to {}".format(vicker_data_folder))
+    
     return graphs, final_random_X , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L ,adj
 
 def add_edges_for_index(df, index_this, layer_id, G, col_prefix = "vote"):
