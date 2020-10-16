@@ -136,7 +136,7 @@ def get_input_generator(args):
     adj_list = [adj]
     graphs_list = [nx_g]
     Ls = [sgwt_raw_laplacian(adj)]
-    features = torch.tensor(PCA(n_components=args.size_x).fit_transform(g.ndata['feat'].numpy())).to(args.device)
+    features = torch.tensor(PCA(n_components=args.size_x).fit_transform(g.ndata['feat'].numpy()),dtype=torch.float).to(args.device)
     features_list = [features]
     if(args.create_similarity_layer):
         adj_2 = np.array(kneighbors_graph(g.ndata['feat'].numpy(),n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
