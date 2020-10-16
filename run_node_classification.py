@@ -16,7 +16,7 @@ args['batch_size']=-1
 args['multiplex_folder_path'] = "/home/keshav/courses/master_thesis/multiplex_datasets"
 args['num_epochs']=20
 args["ng_data"] = "/home/keshav/courses/master_thesis/Graph-Transformer/code_m/data/NGs.mat"
-args['num_neighbors']=10
+args['num_neighbors']=20
 args['loss_type'] = 'contrastive'
 args['model_type'] = 'u2gnn'
 args['single_layer_only'] = False
@@ -28,7 +28,7 @@ args['eval_type'] = 'kmeans'
 args['synth_graph_type'] = "NGs"
 args['save_input_list'] = True
 args['num_similarity_neighbors'] = 40
-args['create_similarity_layer'] = False
+args['create_similarity_layer'] = True
 args = util.Namespace(**args)
 
 

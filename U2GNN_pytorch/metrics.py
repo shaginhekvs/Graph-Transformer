@@ -4,6 +4,7 @@ from sklearn.metrics.cluster import adjusted_rand_score as ri
 from sklearn.metrics import accuracy_score
 from sklearn.cluster import KMeans, SpectralClustering
 import itertools
+from scipy import stats
 import numpy as np
 from scipy.sparse import csr_matrix
 import scipy.io 
@@ -66,29 +67,43 @@ def accuracy_clustering(y_true, y_pred):
     
     return max(scores)
 
+def cluster_label_by_majority_vote(C, C_ref):
+    out = np.zeros(C.shape)
+    unique_ids = np.unique(C)
+    for label in unique_ids:
+        loc = np.where(C == label)
+        mode_result = stats.mode(C_ref[loc],axis = None)
+        out[loc] = mode_result.mode
+
+    return out
+
+def clustering_avg_error(C,C_ref):
+    Cout = cluster_label_by_majority_vote(C,C_ref)
+    return sum(Cout != C_ref)/len(C)
+
 def print_evaluation(y_true, L, K):
 
     _, V   = scipy.linalg.eigh(L)
     E      = V[:,:K]
     y = KMeans(K, random_state=42).fit_predict(E)
-
+    avg_ce = clustering_avg_error(y, y_true)
     acc_spec = accuracy_clustering(y_true, y)
     pu_spec        = purity_score(y_true, y)
     nmi_score_spec = nmi(y_true.ravel(), y.ravel())#, average_method='geometric')
     ri_score_spec  = ri(y_true.ravel(), y.ravel())
 
-    print('Accuracy', acc_spec, 'Purity', pu_spec, 'NMI', nmi_score_spec, 'RI', ri_score_spec)
+    print('Accuracy', acc_spec, 'Purity', pu_spec, 'NMI', nmi_score_spec, 'RI', ri_score_spec, "Avg CE", avg_ce )
     return y
 
 
 def print_evaluation_from_embeddings(y_true, embeddings, K=5):
 
     y = KMeans(K, random_state=42).fit_predict(embeddings)
-
+    avg_ce = clustering_avg_error(y, y_true)
     acc_spec = accuracy_clustering(y_true, y)
     pu_spec        = purity_score(y_true, y)
     nmi_score_spec = nmi(y_true.ravel(), y.ravel())#, average_method='geometric')
     ri_score_spec  = ri(y_true.ravel(), y.ravel())
 
-    print('Accuracy', acc_spec, 'Purity', pu_spec, 'NMI', nmi_score_spec, 'RI', ri_score_spec)
+    print('Accuracy', acc_spec, 'Purity', pu_spec, 'NMI', nmi_score_spec, 'RI', ri_score_spec, "Avg CE", avg_ce )
     return acc_spec
