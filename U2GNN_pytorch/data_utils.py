@@ -398,7 +398,7 @@ def get_congress_dataset(args):
     layer_ids = list(range(0,16))
     edges_df = pd.read_csv(edges_file_path, sep = ",", header = None,  names = ["layerId"] + ["vote{}".format(i) for i in layer_ids])
     edges_df['labels'] = 0
-    layer_ids = [0,1,2,3]
+    #layer_ids = [0,1,2,3]
     edges_df.loc[edges_df['layerId'] == "republican",'labels'] = 1 
     ids = np.array(list(range(len(edges_df))))
     graphs_list = []
@@ -611,7 +611,7 @@ def get_leskovec_true_dataset(args):
     multiplex_folder_path= args.multiplex_folder_path
     size_x = args.size_x
     data_folder = os.path.join(multiplex_folder_path, "Leskovec-Ng Dataset" )
-    file_names = ["LN_2000_2004.mat", "LN_2005_2009.mat" , "LN_2010_2014.mat"]
+    file_names = ["LN_1995_1999.mat","LN_2000_2004.mat", "LN_2005_2009.mat" , "LN_2010_2014.mat"]
     adj_mats = []
     edges = []
     G = []
@@ -621,7 +621,7 @@ def get_leskovec_true_dataset(args):
         
         mat1 = scipy.io.loadmat( os.path.join(data_folder, file))
         
-        adj = process_adj_mat(mat1["A{}".format(i+2)])
+        adj = process_adj_mat(mat1["A{}".format(i+1)])
         Ls.append(sgwt_raw_laplacian(adj))
         adj_mats.append(adj)
         idx_nonzeros = np.nonzero(adj)

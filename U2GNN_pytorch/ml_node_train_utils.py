@@ -17,9 +17,10 @@ from .gcn_pytorch import TransformerGCN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from .metrics import print_evaluation_from_embeddings
 from scipy.sparse import coo_matrix
-from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset, get_leskovec_true_dataset
+from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset, get_leskovec_true_dataset, sgwt_raw_laplacian
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import kneighbors_graph
 import statistics
 from .python_multi_layer_siamese_u2gnn import TransformerMLU2GNN
 
@@ -104,7 +105,8 @@ def get_input_generator(args):
     else:
         cuda = True
         #g = g.to(args.device)
-    features = g.ndata['feat'].unsqueeze( axis = -1)
+    
+    features = g.ndata['feat']#.unsqueeze( axis = -1)
     labels = g.ndata['label']
     train_mask = g.ndata['train_mask']
     print(sum(train_mask))
@@ -129,11 +131,27 @@ def get_input_generator(args):
     #g = dgl.remove_self_loop(g)
     n_edges = g.number_of_edges()
     nx_g = data[0].to_networkx()
-    args.update(graph_obj = nx_g)
     
-    adj = np.expand_dims(nx.convert_matrix.to_numpy_matrix(nx_g),axis = -1)
-    process_adj_mat(adj, args)
-    return [nx_g], features, labels, train_mask, val_mask, test_mask
+    adj_2 = np.array(kneighbors_graph(g.ndata['feat'].numpy(),n_neighbors = args.num_similarity_neighbors, metric = "cosine").todense())
+    nx_g2 = nx.convert_matrix.from_numpy_array(adj_2, create_using = nx.DiGraph)
+    adj = np.array(nx.convert_matrix.to_numpy_matrix(nx_g))
+    
+    #adj = np.expand_dims(nx.convert_matrix.to_numpy_matrix(nx_g),axis = -1)
+    adj_list = [adj,adj_2]
+    Ls = []
+    graphs_list = [nx_g, nx_g2]
+    features_list = [features, features]
+    for a_m in adj_list:
+        Ls.append(sgwt_raw_laplacian(a_m))
+
+    adj_final = np.stack(adj_list,axis = 2)
+    L = np.stack(Ls, axis = 2)
+    
+    features = torch.stack(features_list, axis = 2 )
+    process_adj_mat(adj_final, args)
+    args.update(graph_obj =graphs_list)
+    args.update(laplacian=L)
+    return graphs_list, features, labels, train_mask, val_mask, test_mask
 
 def sample_neighbors(graph, args):
     

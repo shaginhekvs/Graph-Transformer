@@ -46,10 +46,11 @@ class GraphContrastiveLoss(nn.Module):
             else:
                 mask = mask.float()
 
-            dot_features = features @ features.T / self.temperature
+            dot_features = features @ features.T / self.temperature 
+            #N X N  matrix product, calculates all pairwise unnormalized dots products
             
         else:
-            dot_features = -dist_fn
+            dot_features = -dist_fn 
             
         logits_max, _ = torch.max(dot_features, dim=1, keepdim=True)
         logits = dot_features - logits_max.detach()  # for numerical stability

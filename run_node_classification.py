@@ -27,6 +27,7 @@ args['size_x'] = 50
 args['eval_type'] = 'logistic'
 args['synth_graph_type'] = "NGs"
 args['save_input_list'] = True
+args['num_similarity_neighbors'] = 40
 args = util.Namespace(**args)
 
 
