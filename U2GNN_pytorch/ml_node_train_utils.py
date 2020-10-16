@@ -132,23 +132,23 @@ def get_input_generator(args):
     #g = dgl.remove_self_loop(g)
     n_edges = g.number_of_edges()
     nx_g = data[0].to_networkx()
-    
-    adj_2 = np.array(kneighbors_graph(g.ndata['feat'].numpy(),n_neighbors = args.num_similarity_neighbors, metric = "cosine").todense())
-    nx_g2 = nx.convert_matrix.from_numpy_array(adj_2, create_using = nx.DiGraph)
     adj = np.array(nx.convert_matrix.to_numpy_matrix(nx_g))
-    
-    #adj = np.expand_dims(nx.convert_matrix.to_numpy_matrix(nx_g),axis = -1)
-    adj_list = [adj,adj_2]
-    Ls = []
-    graphs_list = [nx_g, nx_g2]
+    adj_list = [adj]
+    graphs_list = [nx_g]
+    Ls = [sgwt_raw_laplacian(adj)]
     features = torch.tensor(PCA(n_components=200).fit_transform(g.ndata['feat'].numpy())).to(args.device)
-    features_list = [features, features]
-    for a_m in adj_list:
-        Ls.append(sgwt_raw_laplacian(a_m))
+    features_list = [features]
+    if(args.create_similarity_layer):
+        adj_2 = np.array(kneighbors_graph(g.ndata['feat'].numpy(),n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
+        nx_g2 = nx.convert_matrix.from_numpy_array(adj_2, create_using = nx.DiGraph)
+        adj_list.append(adj_2)
+        graphs_list.append(nx_g2)
+        features_list.append(features)
+        Ls.append(sgwt_raw_laplacian(adj_2))
+
 
     adj_final = np.stack(adj_list,axis = 2)
     L = np.stack(Ls, axis = 2)
-    
     features = torch.stack(features_list, axis = 2 )
     process_adj_mat(adj_final, args)
     args.update(graph_obj =graphs_list)
