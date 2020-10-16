@@ -48,7 +48,7 @@ def get_input_generator(args):
     if args.dataset == 'cora':
         data = CoraDataset()
     elif args.dataset == 'citeseer':
-        data = CitationGraphDataset('citeseet')
+        data = CitationGraphDataset('citeseer')
     elif args.dataset == 'pubmed':
         data = CitationGraphDataset('pubmed')
     elif args.dataset == 'PPIDataset':

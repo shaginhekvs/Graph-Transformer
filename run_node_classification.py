@@ -11,7 +11,7 @@ from U2GNN_pytorch.metrics import print_evaluation_from_embeddings, print_evalua
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
-args['dataset']="cora"
+args['dataset']="citeseer"
 args['batch_size']=-1
 args['multiplex_folder_path'] = "/home/keshav/courses/master_thesis/multiplex_datasets"
 args['num_epochs']=20
@@ -23,7 +23,7 @@ args['single_layer_only'] = False
 args['ml_model_type'] = 'siamese'
 args['projection_dim'] = -1
 args['train_fraction'] = 0.10
-args['size_x'] = 100
+args['size_x'] = 200
 args['eval_type'] = 'kmeans'
 args['synth_graph_type'] = "NGs"
 args['save_input_list'] = True
@@ -54,7 +54,7 @@ def model_train_evaluate_get_embeds(parameterization):
     node_embeds = ml_node_train_utils.get_node_embeddings(data_args, model_args, args)
     return node_embeds
 
-model_input = {"ff_hidden_size" : 1024, "num_timesteps": 10, "dropout":0.1, "sampled_num":50,"num_hidden_layers":3,"learning_rate":0.1}
+model_input = {"ff_hidden_size" : 1024, "num_timesteps": 10, "dropout":0.1, "sampled_num":50,"num_hidden_layers":2,"learning_rate":0.1}
 
 embeds = model_train_evaluate_get_embeds(model_input).numpy()
 L_arithmetic = np.mean(args.laplacian, axis=2)
