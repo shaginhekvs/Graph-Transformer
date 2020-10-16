@@ -3,6 +3,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.decomposition import PCA
 
 torch.manual_seed(123)
 from dgl.data import CoraDataset, CitationGraphDataset, PPIDataset, KarateClub
@@ -140,6 +141,7 @@ def get_input_generator(args):
     adj_list = [adj,adj_2]
     Ls = []
     graphs_list = [nx_g, nx_g2]
+    features = torch.tensor(PCA(n_components=200).fit_transform(g.ndata['feat'].numpy())).to(args.device)
     features_list = [features, features]
     for a_m in adj_list:
         Ls.append(sgwt_raw_laplacian(a_m))
