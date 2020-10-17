@@ -97,13 +97,15 @@ def print_evaluation(y_true, L, K):
 
 
 def print_evaluation_from_embeddings(y_true, embeddings, K=5):
-
+    print("calculating kmeans")
     y = KMeans(K, random_state=42).fit_predict(embeddings)
+    print("calculating avg ce")
     avg_ce = clustering_avg_error(y, y_true)
-    acc_spec = accuracy_clustering(y_true, y)
-    pu_spec        = purity_score(y_true, y)
-    nmi_score_spec = nmi(y_true.ravel(), y.ravel())#, average_method='geometric')
-    ri_score_spec  = ri(y_true.ravel(), y.ravel())
+    #acc_spec = accuracy_clustering(y_true, y)
+    #pu_spec        = purity_score(y_true, y)
+    #nmi_score_spec = nmi(y_true.ravel(), y.ravel())#, average_method='geometric')
+    #ri_score_spec  = ri(y_true.ravel(), y.ravel())
 
-    print('Accuracy', acc_spec, 'Purity', pu_spec, 'NMI', nmi_score_spec, 'RI', ri_score_spec, "Avg CE", avg_ce )
-    return acc_spec
+    #print('Accuracy', acc_spec, 'Purity', pu_spec, 'NMI', nmi_score_spec, 'RI', ri_score_spec, "Avg CE", avg_ce )
+    print("Avg CE", avg_ce )
+    return avg_ce
