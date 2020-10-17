@@ -732,6 +732,11 @@ def load_ml_clustering_scipymat_dataset(args):
             feats_scaled = feats
         if args.size_x < feats.shape[1] :
             features = torch.tensor(PCA(n_components=args.size_x).fit_transform(feats_scaled),dtype=torch.float).to(args.device)
+        elif args.size_x > feats.shape[1]:
+            feats_scaled = sklearn.preprocessing.scale(feats)
+            random_X = np.random.normal(size = [n, args.size_x - feats.shape[1]])
+            feats_scaled = np.concatenate([feats_scaled,random_X], axis = 1)
+            features = torch.tensor(feats_scaled,dtype=torch.float).to(args.device)
         else:
             features = torch.tensor(feats_scaled,dtype=torch.float).to(args.device)
         feats_list.append(features)
