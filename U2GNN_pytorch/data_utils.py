@@ -753,7 +753,68 @@ def load_ml_clustering_scipymat_dataset(args):
 
     
     return nx_list, features , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L ,adj_final
+
+def get_uci_true_dataset(args):
+    multiplex_folder_path= args.multiplex_folder_path
+
+    data_folder = os.path.join(multiplex_folder_path, "UCI",  "mfeat")
+    file_names = ["mfeat-fac" , "mfeat-fou", "mfeat-kar", "mfeat-mor" , "mfeat-pix" , "mfeat-zer"]
+    adj_mats = []
+    edges = []
+    G = []
+    Ls = []
+    sum_ = 0
+    labels = [[i] * 200 for i in range ( 10 )]
+    np_labels = np.array(labels).flatten()
+    n = len(np_labels)
+    feats_list = []
+    nx_list = []
+    adj_list = []
+    Ls = []
+    for i, file  in enumerate(file_names):
+        print(os.path.join(data_folder, file))
+        print("# current layer {}".format(i))
+        with open(os.path.join(data_folder, file),'r') as f:
+            mat = f.readlines()
+        #print(mat)
+        mat_2d = [ l.split() for l in mat]
+        np_ary = np.array(mat_2d, dtype = np.float)
+        feats = np_ary
+        adj = np.array(kneighbors_graph(feats ,n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
+        print("# edges in layer {} are {}".format( i, adj.sum()))
+        if(args.scale_features):
+            feats_scaled = sklearn.preprocessing.scale(feats)
+        else:
+            feats_scaled = feats
+        if args.size_x < feats.shape[1] :
+            features = torch.tensor(PCA(n_components=args.size_x).fit_transform(feats_scaled),dtype=torch.float).to(args.device)
+        elif args.size_x > feats.shape[1]:
+            feats_scaled = sklearn.preprocessing.scale(feats)
+            random_X = np.random.normal(size = [n, args.size_x - feats.shape[1]])
+            feats_scaled = np.concatenate([feats_scaled,random_X], axis = 1)
+            features = torch.tensor(feats_scaled,dtype=torch.float).to(args.device)
+        else:
+            features = torch.tensor(feats_scaled,dtype=torch.float).to(args.device)
+        feats_list.append(features)
+        nx_list.append(nx.convert_matrix.from_numpy_array(adj, create_using = nx.DiGraph))
+        adj_list.append(adj)
+        Ls.append(sgwt_raw_laplacian(adj))
         
+    
+    train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    print("# nodes are {}".format( n ))
+    
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
+    adj_final = np.stack(adj_list,axis = 2)
+    L = np.stack(Ls, axis = 2)
+    features = torch.stack(feats_list, axis = 2 ).to(args.device)
+    
+        #mat1 = pd.read_csv( os.path.join(data_folder, file), sep = " ", header = None, ).to_numpy()
+        #print(mat1.shape)
+        
+    return nx_list, features , torch.from_numpy(np_labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L ,adj_final
+
     
 def generate_synthetic_dataset(n=200,K=5, sparse = False, size_x = 8, graph_type = "gaussian",ng_path = None):
 

@@ -19,7 +19,7 @@ from .gcn_pytorch import TransformerGCN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from .metrics import print_evaluation_from_embeddings
 from scipy.sparse import coo_matrix
-from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset, get_leskovec_true_dataset, sgwt_raw_laplacian, load_ml_clustering_mat_dataset, load_ml_clustering_scipymat_dataset
+from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset, get_leskovec_true_dataset, sgwt_raw_laplacian, load_ml_clustering_mat_dataset, load_ml_clustering_scipymat_dataset, get_uci_true_dataset
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import kneighbors_graph
@@ -106,6 +106,12 @@ def get_input_generator(args):
         return output[:-2]
     elif args.dataset in ["3sources", "BBCSport2view_544" , "BBC4view_685" , "WikipediaArticles"]:
         output = load_ml_clustering_scipymat_dataset(args)
+        args.update(graph_obj = output[0])
+        args.update(laplacian = output[-2])
+        process_adj_mat(output[-1], args)
+        return output[:-2]
+    elif args.dataset == "UCI":
+        output = get_uci_true_dataset(args)
         args.update(graph_obj = output[0])
         args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)

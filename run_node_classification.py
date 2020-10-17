@@ -11,7 +11,7 @@ from U2GNN_pytorch.metrics import print_evaluation_from_embeddings, print_evalua
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
-args['dataset']="WikipediaArticles"
+args['dataset']="UCI"
 args['batch_size']=-1
 args['multiplex_folder_path'] = "/home/ksingh/courses/master_thesis/multiplex_datasets"
 args['num_epochs']=30
