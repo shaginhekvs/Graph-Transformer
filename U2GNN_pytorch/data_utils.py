@@ -9,9 +9,9 @@ from sklearn.decomposition import PCA
 import os
 import pandas as pd
 import seaborn as sns
+import h5py
 import math
 import numpy.linalg as lg
-import scipy.io
 from scipy import sparse
 import scipy.linalg as slg
 import torch
@@ -649,8 +649,107 @@ def get_leskovec_true_dataset(args):
         np.savetxt(os.path.join(data_folder,"leskovec_labels.txt"),labels,fmt='%i')
         print("saved to {}".format(data_folder))
     return G, final_random_X, torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask),L, adj
-    
 
+def mat_file_load_all(fname) :
+    f = h5py.File(fname)
+    f_W = f['W']
+    M = np.array(sparse.csc_matrix( (f_W['data'], f_W['ir'], f_W['jc']) ).todense())
+    features = f[f['data'][0][0]].value
+    labels = f[f["truelabel"][0][0]].value.squeeze()
+    f.close()
+    
+    return M, features, labels
+
+def load_ml_clustering_mat_dataset(args):
+    data_folder = args.ml_cluster_mat_folder
+    mat_file_path = os.path.join(data_folder, "{}.mat".format(args.dataset))
+    adj, feats , labels = mat_file_load_all(mat_file_path)
+    print("# edges in layer {} are {}".format( 1, adj.sum()))
+    n = adj.shape[0]
+    train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    print("# nodes are {}".format( n ))
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
+    nx_g = nx.convert_matrix.from_numpy_array(adj, create_using = nx.DiGraph)
+    nx_list = [nx_g]
+    adj_list = [adj]
+    Ls = [sgwt_raw_laplacian(adj)]
+    if(args.scale_features):
+        feats_scaled = sklearn.preprocessing.scale(feats)
+    else:
+        feats_scaled = feats
+    if args.size_x < feats.shape[1] :
+        features = torch.tensor(PCA(n_components=args.size_x).fit_transform(feats_scaled),dtype=torch.float).to(args.device)
+    else:
+        features = torch.tensor(feats_scaled,dtype=torch.float).to(args.device)
+    print("# features are {}".format( features.shape[1]))
+    features_list = [features]
+    if(args.create_similarity_layer):
+        adj_2 = np.array(kneighbors_graph(feats ,n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
+        nx_g2 = nx.convert_matrix.from_numpy_array(adj_2, create_using = nx.DiGraph)
+        adj_list.append(adj_2)
+        nx_list.append(nx_g2)
+        features_list.append(features)
+        Ls.append(sgwt_raw_laplacian(adj_2))
+    
+    adj_final = np.stack(adj_list,axis = 2)
+    L = np.stack(Ls, axis = 2)
+    features = torch.stack(features_list, axis = 2 ).to(args.device)
+
+    
+    return nx_list, features , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L ,adj_final
+        
+def load_ml_clustering_scipymat_dataset(args):
+    data_folder = args.ml_cluster_mat_folder
+    mat_file_path = os.path.join(data_folder, "{}.mat".format(args.dataset))
+    print(mat_file_path)
+    mat1 = scipy.io.loadmat( mat_file_path)
+    num_layers = mat1['data'].shape[1]
+    print("# num layers {}".format(num_layers))
+    labels = mat1['truelabel'][0,0].squeeze()
+    n = len(labels)
+    train_mask, test_mask = generate_train_test_mask(n, args.train_fraction)
+    print("# nodes are {}".format( n ))
+    
+    print("# train samples are {}".format(train_mask.sum()))
+    print("# test samples are {}".format(test_mask.sum()))
+    feats_list = []
+    nx_list = []
+    adj_list = []
+    Ls = []
+    for i in range(num_layers):
+        print("# current layer {}".format(i))
+        feats = mat1['data'][0,i].T
+        if(type(feats) == scipy.sparse.csr.csr_matrix or type(feats) == scipy.sparse.csc.csc_matrix):
+            print("convert features to dense")
+            feats = np.array(feats.todense())
+        print(feats.shape)
+        adj = np.array(kneighbors_graph(feats ,n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
+        print("# edges in layer {} are {}".format( i, adj.sum()))
+        if(args.scale_features):
+            feats_scaled = sklearn.preprocessing.scale(feats)
+        else:
+            feats_scaled = feats
+        if args.size_x < feats.shape[1] :
+            features = torch.tensor(PCA(n_components=args.size_x).fit_transform(feats_scaled),dtype=torch.float).to(args.device)
+        else:
+            features = torch.tensor(feats_scaled,dtype=torch.float).to(args.device)
+        feats_list.append(features)
+        nx_list.append(nx.convert_matrix.from_numpy_array(adj, create_using = nx.DiGraph))
+        adj_list.append(adj)
+        Ls.append(sgwt_raw_laplacian(adj))
+        
+    
+    
+    adj_final = np.stack(adj_list,axis = 2)
+    L = np.stack(Ls, axis = 2)
+    features = torch.stack(feats_list, axis = 2 ).to(args.device)
+    print("# features are {}".format( features.shape[1]))
+
+    
+    return nx_list, features , torch.from_numpy(labels),  torch.from_numpy(train_mask), torch.from_numpy(test_mask), torch.from_numpy(test_mask), L ,adj_final
+        
+    
 def generate_synthetic_dataset(n=200,K=5, sparse = False, size_x = 8, graph_type = "gaussian",ng_path = None):
 
     L, labels, K, n, S, X, adj = build_multilayer_graph(graph_type = graph_type, n=n, K=K, 

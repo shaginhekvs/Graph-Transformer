@@ -8,6 +8,7 @@ from sklearn.decomposition import PCA
 torch.manual_seed(123)
 from dgl.data import CoraDataset, CitationGraphDataset, PPIDataset, KarateClub
 import dgl
+from scipy import sparse
 import numpy as np
 np.random.seed(123)
 import time
@@ -18,7 +19,7 @@ from .gcn_pytorch import TransformerGCN
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from .metrics import print_evaluation_from_embeddings
 from scipy.sparse import coo_matrix
-from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset, get_leskovec_true_dataset, sgwt_raw_laplacian
+from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset, get_leskovec_true_dataset, sgwt_raw_laplacian, load_ml_clustering_mat_dataset, load_ml_clustering_scipymat_dataset
 from .util import load_data, separate_data_idx, Namespace
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import kneighbors_graph
@@ -93,6 +94,18 @@ def get_input_generator(args):
         return output[:-2]
     elif args.dataset == "leskovec":
         output = get_leskovec_true_dataset(args)
+        args.update(graph_obj = output[0])
+        args.update(laplacian = output[-2])
+        process_adj_mat(output[-1], args)
+        return output[:-2]
+    elif args.dataset == "webKB_texas_2":
+        output = load_ml_clustering_mat_dataset(args)
+        args.update(graph_obj = output[0])
+        args.update(laplacian = output[-2])
+        process_adj_mat(output[-1], args)
+        return output[:-2]
+    elif args.dataset in ["3sources", "BBCSport2view_544" , "BBC4view_685" ]:
+        output = load_ml_clustering_scipymat_dataset(args)
         args.update(graph_obj = output[0])
         args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)
