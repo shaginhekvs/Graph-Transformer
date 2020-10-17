@@ -104,7 +104,7 @@ def get_input_generator(args):
         args.update(laplacian = output[-2])
         process_adj_mat(output[-1], args)
         return output[:-2]
-    elif args.dataset in ["3sources", "BBCSport2view_544" , "BBC4view_685" ]:
+    elif args.dataset in ["3sources", "BBCSport2view_544" , "BBC4view_685" , "WikipediaArticles"]:
         output = load_ml_clustering_scipymat_dataset(args)
         args.update(graph_obj = output[0])
         args.update(laplacian = output[-2])

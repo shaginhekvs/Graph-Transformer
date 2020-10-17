@@ -11,7 +11,7 @@ from U2GNN_pytorch.metrics import print_evaluation_from_embeddings, print_evalua
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
-args['dataset']="BBC4view_685"
+args['dataset']="WikipediaArticles"
 args['batch_size']=-1
 args['multiplex_folder_path'] = "/home/ksingh/courses/master_thesis/multiplex_datasets"
 args['num_epochs']=30
@@ -23,7 +23,7 @@ args['single_layer_only'] = False
 args['ml_model_type'] = 'siamese'
 args['projection_dim'] = -1
 args['train_fraction'] = 0.10
-args['size_x'] = 40
+args['size_x'] = 30
 args['eval_type'] = 'kmeans'
 args['synth_graph_type'] = "NGs"
 args['save_input_list'] = True
