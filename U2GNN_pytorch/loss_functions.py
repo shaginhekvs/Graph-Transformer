@@ -34,7 +34,7 @@ class Loss_functions(nn.Module):
 def contrastive_loss(args):
     loss_this = torch.tensor(0.0,dtype  = torch.float32).to(args.device)
     for i,logits in enumerate(args.logits_list):
-        args_loss = Namespace(features = logits, mask = args.adj_mat[:,:,i])
+        args_loss = Namespace(features = logits, mask = args.adj_mat[:,:,i], output_vector = args.output_vector,input_x = args.input_x[:,:,i] , sampled_num = args.sampled_num, input_samples = args.input_samples[:,:,i])
         loss_this += args.contrastiveObj(args_loss)
     return loss_this
         

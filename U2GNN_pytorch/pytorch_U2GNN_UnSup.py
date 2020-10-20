@@ -27,13 +27,17 @@ class TransformerU2GNN(nn.Module):
         self.em_layers = []
         self.adj_mat = adj_mat
         self.loss_type = loss_type
-        self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
+        if(self.single_layer_only):
+            self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
+            self.reset_parameters()
         '''
         encoder_layer1 = TransformerEncoderLayerSmaller(d_model=self.feature_dim_size, nhead=1, dim_feedforward=self.ff_hidden_size, dropout=dropout) # embed_dim must be divisible by num_heads
         self.u2gnn_layers.append(encoder_layer1)
         encoder_layer2 = TransformerEncoderLayerSmaller(d_model=self.ff_hidden_size, nhead=1, dim_feedforward=2, dropout=dropout)
         self.u2gnn_layers.append(encoder_layer2)
         '''
+        self.embed_layer = nn.Embedding(self.vocab_size, self.feature_dim_size)
+            
         for _ in range(self.num_U2GNN_layers):
             #self.em_layers.append(nn.Embedding(self.vocab_size, self.feature_dim_size))
             encoder_layers = TransformerEncoderLayer(d_model=self.feature_dim_size, nhead=1, dim_feedforward=self.ff_hidden_size, dropout=0.5) # embed_dim must be divisible by num_heads
@@ -44,12 +48,12 @@ class TransformerU2GNN(nn.Module):
             self.ss = SampledSoftmax(self.vocab_size, self.sampled_num, self.feature_dim_size*self.num_U2GNN_layers, self.device)
         if(loss_type == 'contrastive'):
             self.ss = GraphContrastiveLoss()
-        self.reset_parameters()
+        
     
     def reset_parameters(self):
         stdv = math.sqrt(6.0 / (self.weight.size(0) + self.weight.size(1)))
         self.weight.data.uniform_(-stdv, stdv)
-    def forward(self, X_concat, input_x, input_y, args = None):
+    def forward(self, X_concat, input_x , input_y, args = None):
         output_vectors = [] # should test output_vectors = [X_concat]
         input_Tr = F.embedding(input_x, X_concat)
         for layer_idx in range(self.num_U2GNN_layers):

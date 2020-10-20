@@ -23,11 +23,12 @@ class TransformerMLU2GNN(nn.Module):
         self.u2gnn_model_per_layer = torch.nn.ModuleList()
         self.adj_mat = adj_mat
         self.alpha = alpha
+        self.vocab_size = vocab_size
         self.ml_model_type =  ml_model_type
         self.num_u2gnn_layers = 1 if ml_model_type == 'siamese' else adj_mat.shape[-1]
         self.num_graph_layers = adj_mat.shape[-1]
         self.loss_func = Loss_functions(loss_type)
-        
+        self.sampled_num = sampled_num
         self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
         self.projection_dim = projection_dim
         self.proj_weight = None
@@ -40,26 +41,28 @@ class TransformerMLU2GNN(nn.Module):
             u2gnn_model = TransformerU2GNN(vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
                  num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type, loss_type, adj_mat[i],single_layer_only = False)
             self.u2gnn_model_per_layer.append(u2gnn_model)
+        self.ss = SampledSoftmax(vocab_size, sampled_num, self.feature_dim_size, self.device)
         self.reset_parameters()
+            
     
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.weight.data, gain=1.414)
         if(self.projection_dim > 0):
             nn.init.xavier_uniform_(self.proj_weight.data, gain=1.414)
             
-    def ml_loss_func(self,args, logits):
+    def ml_loss_func(self,args, logits, output_vector ,input_x, input_samples):
         args_loss = None
 
         if(args.loss_type == 'gae'):
             args_loss = Namespace(norm = args.norm, logits_list = logits, adj_label = args.adj_label, weight_tensor = args.weight_tensor)
             return args_loss
         elif( args.loss_type == "contrastive"):
-            args_loss = Namespace(logits_list = logits, adj_mat = self.adj_mat, device = self.device)
+            args_loss = Namespace(logits_list = logits, adj_mat = self.adj_mat, device = self.device, input_x = input_x ,  sampled_num = args.sampled_num, input_samples = input_samples, output_vector = output_vector)
         else:
             raise NotImplementedError('unknown loss {}'.format(args.loss_type))
         return args_loss
     
-    def forward(self, X_concat, input_x, input_y=None, args = None):
+    def forward(self, X_concat, input_x, input_y=None, input_samples = None, args = None):
         if(len(input_x.shape) != 3 ):
             raise ValueError('expected 3d sampled input_x ')
         if(input_x.shape[2] != self.num_graph_layers):
@@ -67,17 +70,14 @@ class TransformerMLU2GNN(nn.Module):
             
         logits_all_forwarded = []
         
-        
+        #print("in forward")
         if(self.ml_model_type == 'siamese'):
             
             for i in range(self.num_graph_layers):
                 loss, logits_this = self.u2gnn_model_per_layer[0](X_concat[:,:,i], input_x[:,:,i], input_y)
                 
                 logits_all_forwarded.append(logits_this)
-
-        
-        else:
-            
+        else:            
             for i in range(self.num_graph_layers):
                 loss, logits_this = self.u2gnn_model_per_layer[i](X_concat[:,:,i], input_x[:,:,i], input_y)
                 
@@ -89,13 +89,17 @@ class TransformerMLU2GNN(nn.Module):
         output_vector = torch.squeeze(output_vector, dim = 1)
         if(self.projection_dim > 0):
             output_vector = F.leaky_relu(torch.matmul(output_vector, self.proj_weight), negative_slope=self.alpha)
-        output_vector = torch.mul(self.weight, output_vector)    
-
+        #output_vector = torch.mul(self.weight, output_vector)  
+        #print(output_vector.shape)
+        #print(input_y.shape)
+        #loss = self.ss(output_vector ,input_x, input_y) # ensure input_y is ok
+        sample_weights = torch.index_select(self.weight, 0, input_y)
+        output_vector = torch.mul(sample_weights, output_vector)  
         
         
-        loss_value = self.loss_func(self.ml_loss_func(args,[self.weight]*self.num_graph_layers))   
+        loss = self.loss_func(self.ml_loss_func(args,[self.weight]*self.num_graph_layers,output_vector,input_x, input_samples))   
         
-        return loss_value, self.weight.detach()
+        return loss, self.weight.detach()
 
 
         

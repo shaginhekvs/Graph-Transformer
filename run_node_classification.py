@@ -11,8 +11,8 @@ from U2GNN_pytorch.metrics import print_evaluation_from_embeddings, print_evalua
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
-args['dataset']="UCI"
-args['batch_size']=-1
+args['dataset']="citeseer"
+args['batch_size']=5
 args['multiplex_folder_path'] = "/home/ksingh/courses/master_thesis/multiplex_datasets"
 args['num_epochs']=30
 args["ng_data"] = "/home/keshav/courses/master_thesis/Graph-Transformer/code_m/data/NGs.mat"
@@ -27,6 +27,7 @@ args['size_x'] = 30
 args['eval_type'] = 'kmeans'
 args['synth_graph_type'] = "NGs"
 args['save_input_list'] = True
+args["sampled_num"] = 10
 args['num_similarity_neighbors'] = 40
 args['create_similarity_layer'] = True
 args['scale_features'] = True

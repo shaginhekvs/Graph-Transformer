@@ -198,6 +198,7 @@ def model_creation_util(parameterization,args):
     else:
         num_batches_per_epoch = 1
     print("model done")
+    print(num_batches_per_epoch)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=num_batches_per_epoch, gamma=0.1)
     model_args = {'model':model, 'optimizer':optimizer, 'num_batches_per_epoch':num_batches_per_epoch, 'scheduler':scheduler}
     

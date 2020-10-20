@@ -174,17 +174,20 @@ def get_input_generator(args):
     args.update(laplacian=L)
     return graphs_list, features, labels, train_mask, val_mask, test_mask
 
-def sample_neighbors(graph, args):
+def sample_neighbors(graph, args, train_idx, all_nodes_set):
     
     input_neighbors = []
-    for val in range(args.vocab_size):
+    input_samples = []
+    for val in train_idx:
         value = val
         neighbors_list = [n for n in graph.neighbors(value)]
+        cur_nodes_set = list(all_nodes_set - set([val]))
         if(neighbors_list):
             input_neighbors.append([value]+list(np.random.choice(neighbors_list, args.num_neighbors, replace=True)))
         else:
             input_neighbors.append([value for _ in range(args.num_neighbors + 1)])
-    return input_neighbors
+        input_samples.append(list(np.random.choice(cur_nodes_set, args.sampled_num, replace=True)))
+    return input_neighbors, input_samples
 
 def get_batch_data_node(graphs, features, train_idx, args):
     '''
@@ -194,14 +197,21 @@ def get_batch_data_node(graphs, features, train_idx, args):
     input_y: 1D Tensor of where the nodes of selected_graph are, in the sparse graph matrix.
     '''
     #X_concat = features[train_idx].to(args.device)
+    all_nodes_set = set(range(args.vocab_size))
     input_neighbors_per_graph = []
+    input_samples_per_graph = []
     for graph in graphs:
-        input_neighbors_per_graph.append(sample_neighbors(graph,args))
+        neigh , samples = sample_neighbors(graph,args, train_idx, all_nodes_set)
+        input_neighbors_per_graph.append(neigh)
+        input_samples_per_graph.append(samples)
 
     input_x = np.array(input_neighbors_per_graph)
+    input_samples = np.array(input_samples_per_graph)
     input_x = torch.from_numpy(input_x).permute(1,2,0).to(args.device)
-    input_y = torch.from_numpy(np.array([x for x in range(args.vocab_size)])).to(args.device)
-    return features.to(args.device), input_x, input_y
+    input_samples = torch.from_numpy(input_samples).permute(1,2,0).to(args.device)
+    #input_y = torch.from_numpy(np.array([x for x in range(args.vocab_size)])).to(args.device)
+    input_y = torch.from_numpy(train_idx).to(args.device)
+    return features.to(args.device), input_x, input_y, input_samples
 
 
 class Batch_Loader_node_classification(object):
@@ -209,12 +219,13 @@ class Batch_Loader_node_classification(object):
         init_object = get_input_generator(args)
         self.graph = init_object[0]
         self.graph, self.features, self.label, self.train_mask, self.val_mask, self.test_mask = init_object
+        self.full_mask = torch.logical_or(self.train_mask ,self.test_mask)
         self.args=args
     def __call__(self):
-        train_idx = select_bs_indices_from_mask(self.train_mask, self.args.batch_size).to('cpu').numpy()
+        train_idx = select_bs_indices_from_mask(self.full_mask, self.args.batch_size).to('cpu').numpy()
         
-        X_concat, input_x, input_y = get_batch_data_node(self.graph, self.features, train_idx, self.args)
-        return X_concat, input_x, input_y
+        X_concat, input_x, input_y, input_s = get_batch_data_node(self.graph, self.features, train_idx, self.args)
+        return X_concat, input_x, input_y, input_s
     
     def get_validation_idx(self):
         return select_bs_indices_from_mask(self.test_mask,-1)
@@ -283,6 +294,7 @@ def model_creation_util(parameterization,args):
         num_batches_per_epoch = 1
     print("model done")
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=num_batches_per_epoch, gamma=0.1)
+    print('scheduler done')
     model_args = {'model':model, 'optimizer':optimizer, 'num_batches_per_epoch':num_batches_per_epoch, 'scheduler':scheduler}
     
     return Namespace(**model_args)
@@ -303,19 +315,24 @@ def loss_func(args, logits):
 def single_epoch_training_util(data_args, model_args, args):
     model_args.model.train() # Turn on the train mode
     total_loss = 0.
-    for _ in range(model_args.num_batches_per_epoch):
-        X_concat, input_x, input_y = data_args.batch_nodes()
+    print("# batches is {}".format(model_args.num_batches_per_epoch))
+    for i in range(model_args.num_batches_per_epoch):
+        #print("sampling next batch")
+        X_concat, input_x, input_y, input_samples = data_args.batch_nodes()
         model_args.optimizer.zero_grad()
         if(args.single_layer_only):
-            logits = model_args.model(X_concat, input_x, input_y, args)
-            print("forward pass done for single layer")
+            #print("forward pass on")
+            logits = model_args.model(X_concat, input_x, input_y, input_samples, args)
+            #print("forward pass done for single layer")
             loss = loss_func(args,logits)
         else:
-            loss, _ = model_args.model(X_concat, input_x, input_y, args)
-            print("forward pass done for multi layers")
-            
+            #print("forward pass on")
+            loss, _ = model_args.model(X_concat, input_x, input_y, input_samples , args)
+            #print("forward pass done for multi layers")
+        if(i % 5 ) == 0:
+            print("loss for mini batch {} is {}".format(i, loss.item()))
         loss.backward()
-        print("backward pass done")
+        #print("backward pass done")
         #torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)
         model_args.optimizer.step()
         total_loss += loss.item()
@@ -331,11 +348,11 @@ def get_node_embeddings(data_args, model_args, args):
         return model.ss.weight.to('cpu')
         
     elif(args.loss_type == 'gae'):
-        X_concat, input_x, input_y = data_args.batch_nodes()
-        return model(X_concat, input_x, input_y, args)[1].detach().to('cpu')
+        X_concat, input_x, input_y, input_samples = data_args.batch_nodes()
+        return model(X_concat, input_x, input_y, input_samples, args)[1].detach().to('cpu')
     elif( args.loss_type == "contrastive"):
-        X_concat, input_x, input_y = data_args.batch_nodes()
-        return model(X_concat, input_x, input_y, args)[1].detach().to('cpu')
+        X_concat, input_x, input_y, input_samples = data_args.batch_nodes()
+        return model(X_concat, input_x, input_y, input_samples ,args)[1].detach().to('cpu')
 
 def evaluate(epoch, data_args, model_args, args):
     model = model_args.model
