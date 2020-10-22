@@ -333,8 +333,13 @@ def single_epoch_training_util(data_args, model_args, args):
             print("loss for mini batch {} is {}".format(i, loss.item()))
         loss.backward()
         #print("backward pass done")
-        #torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)
+        torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)
+        
         model_args.optimizer.step()
+        print(model_args.model.self_attn.in_proj_weight.grad.abs().sum())
+        print(model_args.model.u2gnn_model_per_layer[0].self_attn.in_proj_weight.grad.abs().sum())
+        #print(model_args.model.self_attn.k_proj_weight.grad.abs().sum())
+        #print(model_args.model.self_attn.q_proj_weight.grad.abs().sum())
         total_loss += loss.item()
 
     return total_loss

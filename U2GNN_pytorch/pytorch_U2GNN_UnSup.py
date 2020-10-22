@@ -55,12 +55,17 @@ class TransformerU2GNN(nn.Module):
         self.weight.data.uniform_(-stdv, stdv)
     def forward(self, X_concat, input_x , input_y, args = None):
         output_vectors = [] # should test output_vectors = [X_concat]
-        input_Tr = F.embedding(input_x, X_concat)
+        input_x_t = torch.transpose(input_x, 0, 1)
+        #print(input_x_t.shape)
+        input_Tr = F.embedding(input_x_t, X_concat)
         for layer_idx in range(self.num_U2GNN_layers):
             #
             output_Tr = self.u2gnn_layers[layer_idx](input_Tr)
             input_Tr = output_Tr
-            output_Tr = torch.split(output_Tr, split_size_or_sections=1, dim=1)[0]
+            
+            output_Tr_t = torch.transpose(output_Tr, 0, 1)
+            #print(output_Tr_t.shape)
+            output_Tr = torch.split(output_Tr_t, split_size_or_sections=1, dim=1)[0]
             output_Tr = torch.squeeze(output_Tr, dim=1)
             #new input for next layer
             #input_Tr = F.embedding(input_x, output_Tr)
@@ -71,8 +76,13 @@ class TransformerU2GNN(nn.Module):
         #output_vectors = torch.squeeze(output_Tr, dim=1)
         
         output_vectors = torch.stack(output_vectors,dim=1)
+        output_vectors = torch.transpose(output_vectors,0,1)
+        #print("for multi layers")
+        #print(output_vectors.shape)
         output_vector = self.self_attn(output_vectors,output_vectors,output_vectors)[0] # attention between different layers.
         
+        output_vector = torch.transpose(output_vector,0,1)
+        #print(output_vector.shape)
         output_vector = torch.split(output_vector, split_size_or_sections=1, dim=1)[-1]
         output_vector = torch.squeeze(output_vector, dim = 1)
         #output_vectors = output_vectors[-1]

@@ -2,9 +2,9 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from .sampled_softmax import  SampledSoftmax
 from .layers import TransformerEncoderLayerSmaller
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
-from .sampled_softmax import  SampledSoftmax
 from .sampled_neighbor import SampledNeighbor
 from .pytorch_U2GNN_UnSup import TransformerU2GNN
 from .contrastive_loss import GraphContrastiveLoss
@@ -28,7 +28,6 @@ class TransformerMLU2GNN(nn.Module):
         self.num_u2gnn_layers = 1 if ml_model_type == 'siamese' else adj_mat.shape[-1]
         self.num_graph_layers = adj_mat.shape[-1]
         self.loss_func = Loss_functions(loss_type)
-        self.sampled_num = sampled_num
         self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
         self.projection_dim = projection_dim
         self.proj_weight = None
@@ -41,7 +40,7 @@ class TransformerMLU2GNN(nn.Module):
             u2gnn_model = TransformerU2GNN(vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
                  num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type, loss_type, adj_mat[i],single_layer_only = False)
             self.u2gnn_model_per_layer.append(u2gnn_model)
-        self.ss = SampledSoftmax(vocab_size, sampled_num, self.feature_dim_size, self.device)
+        self.ss = SampledSoftmax(self.vocab_size, sampled_num, self.feature_dim_size, self.device)
         self.reset_parameters()
             
     
@@ -84,7 +83,12 @@ class TransformerMLU2GNN(nn.Module):
                 logits_all_forwarded.append(logits_this)
         
         logits_all = torch.stack(logits_all_forwarded,dim=1)
+        logits_all = torch.transpose(logits_all,0,1)
+        #print("for final")
+        #print(logits_all.shape)
         logits_output = self.self_attn(logits_all,logits_all,logits_all)[0] # attention between different layers    
+        logits_output = torch.transpose(logits_output,0,1)
+        #print(logits_output.shape)
         output_vector = torch.split(logits_output, split_size_or_sections=1, dim=1)[-1]
         output_vector = torch.squeeze(output_vector, dim = 1)
         if(self.projection_dim > 0):

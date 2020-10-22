@@ -21,7 +21,7 @@ class SampledSoftmax(nn.Module):
         print("init log sampler")
         self.sampler = LogUniformSampler(self.ntokens)
         #
-        self.all_vocabs = set(list(range(ntokens)))
+        self.all_vocabs = np.array(list(range(ntokens)))
         print("init param")
         self.weight = nn.Parameter(torch.Tensor(ntokens, nhid))
         print("init reset params")
@@ -36,8 +36,10 @@ class SampledSoftmax(nn.Module):
 
         #sample_values = self.sampler.sample(self.nsampled, labels.data.cpu().numpy())
         #all_samples = []
-        sample_values = (labels.data.cpu().numpy(),None,None)#np.random.choice(cur_array,self.nsampled,replace = False) 
-        
+        #sample_values = (labels.data.cpu().numpy(),None,None)#np.random.choice(cur_array,self.nsampled,replace = False) 
+        #print("in sample softmax")
+
+        sample_values = (np.random.choice(self.all_vocabs,self.nsampled,replace = False) , None , None)
         return self.sampled(inputs, labels, sample_values)
     
     """@Dai Quoc Nguyen: Implement the sampled softmax loss function as described in the paper
@@ -57,10 +59,12 @@ class SampledSoftmax(nn.Module):
         sample_weights = torch.index_select(self.weight, 0, sample_ids)
 
         # calculate logits
-        true_logits = torch.exp(torch.sum(torch.mul(inputs, true_weights), dim=1)/ ( torch.sum(true_weights.square(),dim=1)* torch.sum(inputs.square(),dim = 1)))
+        #true_logits = torch.exp(torch.sum(torch.mul(inputs, true_weights), dim=1)/ ( torch.sum(true_weights.square(),dim=1)* torch.sum(inputs.square(),dim = 1)))
+        
+        true_logits = torch.exp(torch.sum(torch.mul(inputs, true_weights), dim=1))
         sample_logits = torch.exp(torch.matmul(inputs, torch.t(sample_weights)))
 
-        logits = -torch.log(true_logits)# / torch.sum(sample_logits, dim=1))
+        logits = -torch.log(true_logits * 10 / torch.sum(sample_logits, dim=1) )
 
         return logits.sum()
 '''

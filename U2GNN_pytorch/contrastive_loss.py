@@ -48,16 +48,27 @@ class GraphContrastiveLoss(nn.Module):
         neigh_embeddings = F.embedding(input_x[:,1:] , features)
         cur_for_neigh = torch.stack([cur_label_embeddings] * neigh_embeddings.shape[1] , dim = 1)
         
-        dot_neigh = torch.mul(neigh_embeddings, cur_for_neigh).sum(dim = 2).sum(dim = 1) / neigh_embeddings.shape[1]
+        dot_neigh = torch.mul(neigh_embeddings, cur_for_neigh).sum(dim = 2)#.sum(dim = 1) / neigh_embeddings.shape[1]
+        
         
         sample_embeddings = F.embedding(input_samples,features)
         cur_for_sample = torch.stack([cur_label_embeddings]* sample_embeddings.shape[1], dim = 1)
+        
         #print(cur_for_sample.shape)
         dot_sample = torch.mul(sample_embeddings, cur_for_sample).sum(dim = 2)
+        
+        dot_features = torch.cat([dot_neigh,dot_sample], dim = 1)
+        logits_max, _ = torch.max(dot_features, dim=1, keepdim=True)
+        dot_features = dot_features - logits_max.detach()  # for numerical stability
+        
+        dot_neigh = dot_features[:,:dot_neigh.shape[1]]
+        dot_sample = dot_features[:,dot_neigh.shape[1]:]
+        
+        dot_neigh = dot_neigh.sum(dim = 1) / neigh_embeddings.shape[1]
         dot_sample = torch.log(torch.exp(dot_sample).sum(dim = 1)/sample_embeddings.shape[1])
         
+        #logits = dot_neigh - dot_sample
         logits = dot_neigh - dot_sample
-        
         loss_final = - logits.mean()
         
         return loss_final
