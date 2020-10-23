@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .sampled_softmax import  SampledSoftmax
+#from .sampled_softmax import  SampledSoftmax
 from .layers import TransformerEncoderLayerSmaller
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from .sampled_neighbor import SampledNeighbor
@@ -40,7 +40,7 @@ class TransformerMLU2GNN(nn.Module):
             u2gnn_model = TransformerU2GNN(vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
                  num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type, loss_type, adj_mat[i],single_layer_only = False)
             self.u2gnn_model_per_layer.append(u2gnn_model)
-        self.ss = SampledSoftmax(self.vocab_size, sampled_num, self.feature_dim_size, self.device)
+        #self.ss = SampledSoftmax(self.vocab_size, sampled_num, self.feature_dim_size, self.device)
         self.reset_parameters()
             
     

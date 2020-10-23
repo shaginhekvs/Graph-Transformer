@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .layers import TransformerEncoderLayerSmaller
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
-from .sampled_softmax import  SampledSoftmax
+#from .sampled_softmax import  SampledSoftmax
 from .sampled_neighbor import SampledNeighbor
 from .contrastive_loss import GraphContrastiveLoss
 from .util import Namespace
@@ -45,7 +45,8 @@ class TransformerU2GNN(nn.Module):
         # Linear function
         self.dropouts = nn.Dropout(dropout)
         if(sampler_type == "default"): 
-            self.ss = SampledSoftmax(self.vocab_size, self.sampled_num, self.feature_dim_size*self.num_U2GNN_layers, self.device)
+            #self.ss = SampledSoftmax(self.vocab_size, self.sampled_num, self.feature_dim_size*self.num_U2GNN_layers, self.device)
+            pass
         if(loss_type == 'contrastive'):
             self.ss = GraphContrastiveLoss()
         
