@@ -34,7 +34,7 @@ class TransformerMLU2GNN(nn.Module):
         if(self.projection_dim > 0):
             self.proj_weight = nn.Parameter(torch.FloatTensor(self.feature_dim_size, self.projection_dim))
         
-        if( features_in is not None):
+        if( features_in is None):
             self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
             self.reset_parameters()
         else:

@@ -268,7 +268,8 @@ def model_creation_util(parameterization,args, data_args):
     print("create model")
     print(args.model_type)
     args.update(sampler_type = "neighbor")
-    features_in = data_args.batch_nodes()[0].mean(dim = 2)
+    #features_in = data_args.batch_nodes()[0].mean(dim = 2)
+    features_in = None
     model_input_args = dict(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
                                 dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
                                 vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
