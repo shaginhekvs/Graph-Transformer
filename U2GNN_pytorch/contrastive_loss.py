@@ -65,7 +65,7 @@ class GraphContrastiveLoss(nn.Module):
         dot_sample = dot_features[:,dot_neigh.shape[1]:]
         
         dot_neigh = dot_neigh.sum(dim = 1) / neigh_embeddings.shape[1]
-        dot_sample = torch.log(torch.exp(dot_sample).sum(dim = 1)/sample_embeddings.shape[1])
+        dot_sample = torch.log(self.epsilon + torch.exp(dot_sample).sum(dim = 1)/sample_embeddings.shape[1])
         
         #logits = dot_neigh - dot_sample
         logits = dot_neigh - dot_sample
