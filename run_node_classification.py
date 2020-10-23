@@ -47,12 +47,12 @@ data_args, args = ml_node_train_utils.data_loading_util(args)
 
 
 def model_train_evaluate(parameterization):
-    model_args = ml_node_train_utils.model_creation_util(parameterization,args)
+    model_args = ml_node_train_utils.model_creation_util(parameterization,args,  data_args)
     mean_acc, std = ml_node_train_utils.train_evaluate(data_args,model_args,args)
     return mean_acc
 
 def model_train_evaluate_get_embeds(parameterization):
-    model_args = ml_node_train_utils.model_creation_util(parameterization,args)
+    model_args = ml_node_train_utils.model_creation_util(parameterization,args,  data_args)
     mean_acc, std = ml_node_train_utils.train_evaluate(data_args,model_args,args)
     node_embeds = ml_node_train_utils.get_node_embeddings(data_args, model_args, args)
     return node_embeds
