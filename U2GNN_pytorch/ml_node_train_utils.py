@@ -262,16 +262,17 @@ def data_loading_util(args):
     print("Loading data... finished!")
     return data_args, args
 
-def model_creation_util(parameterization,args):
+def model_creation_util(parameterization,args, data_args):
     print(args.feature_dim_size)
     print(args.vocab_size)
     print("create model")
     print(args.model_type)
     args.update(sampler_type = "neighbor")
+    features_in = data_args.batch_nodes()[0].mean(dim = 2)
     model_input_args = dict(feature_dim_size=args.feature_dim_size, ff_hidden_size=parameterization['ff_hidden_size'],
                                 dropout=parameterization['dropout'], num_self_att_layers=parameterization['num_timesteps'],
                                 vocab_size=args.vocab_size, sampled_num=parameterization['sampled_num'],
-                                num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, loss_type = args.loss_type, adj_mat = args.adj_label,single_layer_only = args.single_layer_only, ml_model_type = args.ml_model_type, projection_dim = args.projection_dim)
+                                num_U2GNN_layers=parameterization['num_hidden_layers'], device=args.device, sampler_type = args.sampler_type, loss_type = args.loss_type, adj_mat = args.adj_label,single_layer_only = args.single_layer_only, ml_model_type = args.ml_model_type, projection_dim = args.projection_dim, features_in = features_in)
     
     if(args.single_layer_only):
         if(args.model_type == 'u2gnn'):

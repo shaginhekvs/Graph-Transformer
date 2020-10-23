@@ -12,7 +12,7 @@ from .util import Namespace
 class TransformerU2GNN(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', loss_type = 'default', adj_mat = None,single_layer_only = True):
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', loss_type = 'default', adj_mat = None,single_layer_only = True, features_in = None):
         super(TransformerU2GNN, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.self_attn = nn.MultiheadAttention(self.feature_dim_size, 1, dropout=dropout)
@@ -28,8 +28,11 @@ class TransformerU2GNN(nn.Module):
         self.adj_mat = adj_mat
         self.loss_type = loss_type
         if(self.single_layer_only):
-            self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
-            self.reset_parameters()
+            if( features_in is not None):
+                self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
+                self.reset_parameters()
+            else:
+                self.weight = nn.Parameter(features_in)
         '''
         encoder_layer1 = TransformerEncoderLayerSmaller(d_model=self.feature_dim_size, nhead=1, dim_feedforward=self.ff_hidden_size, dropout=dropout) # embed_dim must be divisible by num_heads
         self.u2gnn_layers.append(encoder_layer1)

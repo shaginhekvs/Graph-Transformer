@@ -15,7 +15,7 @@ from .util import Namespace
 class TransformerMLU2GNN(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', loss_type = 'default', adj_mat = None, single_layer_only = False, ml_model_type = 'siamese', projection_dim = -1, alpha = 0.2):
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', loss_type = 'default', adj_mat = None, single_layer_only = False, ml_model_type = 'siamese', projection_dim = -1, alpha = 0.2, features_in = None):
         super(TransformerMLU2GNN, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.device = device
@@ -33,15 +33,18 @@ class TransformerMLU2GNN(nn.Module):
         self.proj_weight = None
         if(self.projection_dim > 0):
             self.proj_weight = nn.Parameter(torch.FloatTensor(self.feature_dim_size, self.projection_dim))
-            self.weight = nn.Parameter(torch.Tensor(vocab_size, self.projection_dim))
-        else:
+        
+        if( features_in is not None):
             self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
+            self.reset_parameters()
+        else:
+            self.weight = nn.Parameter(features_in)
         for i in range(self.num_u2gnn_layers):
             u2gnn_model = TransformerU2GNN(vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
                  num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type, loss_type, adj_mat[i],single_layer_only = False)
             self.u2gnn_model_per_layer.append(u2gnn_model)
         #self.ss = SampledSoftmax(self.vocab_size, sampled_num, self.feature_dim_size, self.device)
-        self.reset_parameters()
+        #self.reset_parameters()
             
     
     def reset_parameters(self):
