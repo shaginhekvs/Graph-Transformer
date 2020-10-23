@@ -59,7 +59,7 @@ class GraphContrastiveLoss(nn.Module):
         
         dot_features = torch.cat([dot_neigh,dot_sample], dim = 1)
         logits_max, _ = torch.max(dot_features, dim=1, keepdim=True)
-        dot_features = dot_features - logits_max.detach()  # for numerical stability
+        #dot_features = dot_features - logits_max.detach()  # for numerical stability
         
         dot_neigh = dot_features[:,:dot_neigh.shape[1]]
         dot_sample = dot_features[:,dot_neigh.shape[1]:]
