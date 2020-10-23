@@ -10,7 +10,7 @@ class GraphContrastiveLoss(nn.Module):
     def __init__(self, temperature=1):
         super().__init__()
         self.temperature = temperature
-        self.epsilon = torch.tensor(1e-10, dtype = torch.float)
+        self.epsilon = torch.tensor(1e-6, dtype = torch.float)
 
     def forward(self, args):
         features = args.features 
@@ -59,7 +59,7 @@ class GraphContrastiveLoss(nn.Module):
         
         dot_features = torch.cat([dot_neigh,dot_sample], dim = 1)
         logits_max, _ = torch.max(dot_features, dim=1, keepdim=True)
-        #dot_features = dot_features - logits_max.detach()  # for numerical stability
+        dot_features = dot_features - logits_max.detach()  # for numerical stability
         
         dot_neigh = dot_features[:,:dot_neigh.shape[1]]
         dot_sample = dot_features[:,dot_neigh.shape[1]:]
@@ -68,7 +68,7 @@ class GraphContrastiveLoss(nn.Module):
         dot_sample = torch.log(self.epsilon + torch.exp(dot_sample).sum(dim = 1)/sample_embeddings.shape[1])
         
         #logits = dot_neigh - dot_sample
-        logits = dot_neigh - dot_sample
+        logits = torch.log(self.epsilon + torch.exp(dot_neigh)) - dot_sample
         loss_final = - logits.mean()
         
         return loss_final
