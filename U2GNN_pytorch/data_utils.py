@@ -774,6 +774,7 @@ def get_uci_true_dataset(args):
     for i, file  in enumerate(file_names):
         print(os.path.join(data_folder, file))
         print("# current layer {}".format(i))
+        print(n)
         with open(os.path.join(data_folder, file),'r') as f:
             mat = f.readlines()
         #print(mat)
