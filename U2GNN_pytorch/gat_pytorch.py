@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
-from .sampled_softmax import  SampledSoftmax
+#from .sampled_softmax import  SampledSoftmax
 from .sampled_neighbor import SampledNeighbor
 from .contrastive_loss import GraphContrastiveLoss
 
