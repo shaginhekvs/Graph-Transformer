@@ -9,6 +9,8 @@ from sklearn.decomposition import PCA
 import os
 import pandas as pd
 import seaborn as sns
+from scipy.spatial.distance import pdist, squareform
+from scipy.sparse.csgraph import minimum_spanning_tree
 import h5py
 import math
 import numpy.linalg as lg
@@ -660,6 +662,30 @@ def mat_file_load_all(fname) :
     
     return M, features, labels
 
+def laplacian(graph, normed=False):
+    W = graph.copy()
+    np.fill_diagonal(W,0)
+    d = np.sum(W, axis=0)    
+    if normed:
+        d = np.sqrt(d)
+        D = np.diag(1/d)
+        I = np.eye(W.shape[0])
+        L = I - D.dot(W).dot(D)
+    else:
+        D = np.diag(d)
+        I = np.eye(W.shape[0])
+        L = D - W
+    return L
+
+def build_graph_laplacian(A, X, neighbors=8, mst_weight=10):
+    D = squareform(pdist(X))
+    MST = minimum_spanning_tree(D).toarray()
+    MST *= mst_weight
+    A = np.maximum(A, MST)
+    A = (A + A.T) / 2
+    A[A.nonzero()] = np.exp(-A[A.nonzero()])
+    return laplacian(A)
+
 def load_ml_clustering_mat_dataset(args):
     data_folder = args.ml_cluster_mat_folder
     mat_file_path = os.path.join(data_folder, "{}.mat".format(args.dataset))
@@ -685,13 +711,13 @@ def load_ml_clustering_mat_dataset(args):
     print("# features are {}".format( features.shape[1]))
     features_list = [features]
     if(args.create_similarity_layer):
-        adj_2 = np.array(kneighbors_graph(feats ,n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
+        adj_2 = np.array(kneighbors_graph(feats ,n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = False).todense())
         nx_g2 = nx.convert_matrix.from_numpy_array(adj_2, create_using = nx.DiGraph)
         adj_list.append(adj_2)
         nx_list.append(nx_g2)
         features_list.append(features)
         Ls.append(sgwt_raw_laplacian(adj_2))
-    
+        #Ls.append(build_graph_laplacian(adj_2, feats, False))
     adj_final = np.stack(adj_list,axis = 2)
     L = np.stack(Ls, axis = 2)
     features = torch.stack(features_list, axis = 2 ).to(args.device)

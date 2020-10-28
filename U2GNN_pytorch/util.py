@@ -36,7 +36,7 @@ def get_gm(L, S,n):
     L_reg = np.zeros((S, n, n))
 
     for i in range(S):
-        L_reg[i,:,:] = L[:,:,i] + 0.001*np.eye(n)
+        L_reg[i,:,:] = L[:,:,i] +  10.0 * np.eye(n)
     
     
     L_geometric_mean = pyriemann.utils.mean.mean_riemann(L_reg)
