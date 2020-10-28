@@ -758,7 +758,7 @@ def get_uci_true_dataset(args):
     multiplex_folder_path= args.multiplex_folder_path
 
     data_folder = os.path.join(multiplex_folder_path, "UCI",  "mfeat")
-    file_names = ["mfeat-fac" ]#, "mfeat-fou", "mfeat-kar", "mfeat-mor" , "mfeat-pix" , "mfeat-zer"]
+    file_names = ["mfeat-fac" , "mfeat-fou", "mfeat-kar", "mfeat-mor" , "mfeat-pix" , "mfeat-zer"]
     adj_mats = []
     edges = []
     G = []
