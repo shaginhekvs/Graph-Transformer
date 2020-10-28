@@ -254,7 +254,7 @@ def data_loading_util(args):
     
     batch_nodes = Batch_Loader_node_classification(args)
     args.update(vocab_size=batch_nodes.features.shape[0])
-    args.update(trainset_size=sum(batch_nodes.train_mask).item())
+    args.update(trainset_size=len(batch_nodes.label))
     args.update(feature_dim_size=batch_nodes.features.shape[1])
     data_args= {}
     data_args['batch_nodes'] = batch_nodes

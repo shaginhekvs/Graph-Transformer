@@ -11,8 +11,8 @@ from U2GNN_pytorch.metrics import print_evaluation_from_embeddings, print_evalua
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
-args['dataset']="citeseer"
-args['batch_size']=50
+args['dataset']="UCI"
+args['batch_size']=200
 args['multiplex_folder_path'] = "/home/ksingh/courses/master_thesis/multiplex_datasets"
 args['num_epochs']=30
 args["ng_data"] = "/home/keshav/courses/master_thesis/Graph-Transformer/code_m/data/NGs.mat"
