@@ -20,7 +20,7 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from .metrics import print_evaluation_from_embeddings
 from scipy.sparse import coo_matrix
 from .data_utils import generate_synthetic_dataset, get_vicker_chan_dataset, get_congress_dataset, get_mammo_dataset, get_balance_dataset, get_leskovec_dataset, get_leskovec_true_dataset, sgwt_raw_laplacian, load_ml_clustering_mat_dataset, load_ml_clustering_scipymat_dataset, get_uci_true_dataset
-from .util import load_data, separate_data_idx, Namespace
+from .util import load_data, separate_data_idx, Namespace ,make_symmetric
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import kneighbors_graph
 import statistics
@@ -152,6 +152,7 @@ def get_input_generator(args):
     n_edges = g.number_of_edges()
     nx_g = data[0].to_networkx()
     adj = np.array(nx.convert_matrix.to_numpy_matrix(nx_g))
+    adj = make_symmetric(adj)
     adj_list = [adj]
     graphs_list = [nx_g]
     Ls = [sgwt_raw_laplacian(adj)]
@@ -159,6 +160,7 @@ def get_input_generator(args):
     features_list = [features]
     if(args.create_similarity_layer):
         adj_2 = np.array(kneighbors_graph(g.ndata['feat'].numpy(),n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
+        adj_2 = make_symmetric(adj_2)
         nx_g2 = nx.convert_matrix.from_numpy_array(adj_2, create_using = nx.DiGraph)
         adj_list.append(adj_2)
         graphs_list.append(nx_g2)

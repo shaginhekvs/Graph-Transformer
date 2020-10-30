@@ -686,6 +686,11 @@ def build_graph_laplacian(A, X, neighbors=8, mst_weight=10):
     A[A.nonzero()] = np.exp(-A[A.nonzero()])
     return laplacian(A)
 
+def make_symmetric(A):
+    adj = (A + A.T)/2
+    adj = (adj >0).astype(int)
+    return adj
+
 def load_ml_clustering_mat_dataset(args):
     data_folder = args.ml_cluster_mat_folder
     mat_file_path = os.path.join(data_folder, "{}.mat".format(args.dataset))
@@ -698,8 +703,9 @@ def load_ml_clustering_mat_dataset(args):
     print("# test samples are {}".format(test_mask.sum()))
     nx_g = nx.convert_matrix.from_numpy_array(adj, create_using = nx.DiGraph)
     nx_list = [nx_g]
+    adj_symm = make_symmetric(adj)
     adj_list = [adj]
-    Ls = [sgwt_raw_laplacian(adj)]
+    Ls = [sgwt_raw_laplacian(adj_symm)]
     if(args.scale_features):
         feats_scaled = sklearn.preprocessing.scale(feats)
     else:
@@ -712,11 +718,12 @@ def load_ml_clustering_mat_dataset(args):
     features_list = [features]
     if(args.create_similarity_layer):
         adj_2 = np.array(kneighbors_graph(feats ,n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = False).todense())
+        adj_symm_2 = make_symmetric(adj_2)
         nx_g2 = nx.convert_matrix.from_numpy_array(adj_2, create_using = nx.DiGraph)
         adj_list.append(adj_2)
         nx_list.append(nx_g2)
         features_list.append(features)
-        Ls.append(sgwt_raw_laplacian(adj_2))
+        Ls.append(sgwt_raw_laplacian(adj_symm_2))
         #Ls.append(build_graph_laplacian(adj_2, feats, False))
     adj_final = np.stack(adj_list,axis = 2)
     L = np.stack(Ls, axis = 2)
@@ -751,6 +758,8 @@ def load_ml_clustering_scipymat_dataset(args):
             feats = np.array(feats.todense())
         print(feats.shape)
         adj = np.array(kneighbors_graph(feats ,n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
+        adj_symm_2 = make_symmetric(adj)
+        #adj = adj_symm_2
         print("# edges in layer {} are {}".format( i, adj.sum()))
         if(args.scale_features):
             feats_scaled = sklearn.preprocessing.scale(feats)
@@ -768,7 +777,7 @@ def load_ml_clustering_scipymat_dataset(args):
         feats_list.append(features)
         nx_list.append(nx.convert_matrix.from_numpy_array(adj, create_using = nx.DiGraph))
         adj_list.append(adj)
-        Ls.append(sgwt_raw_laplacian(adj))
+        Ls.append(sgwt_raw_laplacian(adj_symm_2))
         
     
     

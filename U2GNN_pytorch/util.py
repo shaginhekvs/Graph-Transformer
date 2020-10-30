@@ -5,6 +5,14 @@ import scipy.sparse as sp
 import pyriemann
 from sklearn.model_selection import StratifiedKFold
 
+
+
+def make_symmetric(A):
+    adj = (A + A.T)/2
+    adj = (adj >0).astype(int)
+    return adj
+
+
 """Adapted from https://github.com/weihua916/powerful-gnns/blob/master/util.py"""
 
 class S2VGraph(object):
