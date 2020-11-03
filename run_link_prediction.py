@@ -13,7 +13,7 @@ init_notebook_plotting()
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
 args={}
-args['dataset']="UCI"
+args['dataset']="cora"
 args['batch_size']=200
 args['multiplex_folder_path'] = "/home/ksingh/courses/master_thesis/multiplex_datasets"
 args['num_epochs']=30
