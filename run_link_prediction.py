@@ -8,7 +8,7 @@ from U2GNN_pytorch import ml_link_train_utils
 from U2GNN_pytorch import data_utils_linkPrediction
 from U2GNN_pytorch import util
 from U2GNN_pytorch.metrics import print_evaluation_from_embeddings, print_evaluation
-init_notebook_plotting()
+
 
 log_path = "/home/ksingh/courses/master_thesis/runs/u2gnn/{}"
 
