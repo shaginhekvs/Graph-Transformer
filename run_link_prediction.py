@@ -45,7 +45,7 @@ args.update(device=device)
 
 
 
-data_args, args = ml_node_train_utils.data_loading_util(args)
+data_args, args = ml_link_train_utils.data_loading_util(args)
 
 
 def model_train_evaluate_get_embeds(parameterization):
