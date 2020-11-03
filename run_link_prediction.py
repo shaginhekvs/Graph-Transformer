@@ -4,14 +4,6 @@ import sys
 # script specific requirement in readme
 sys.path.insert(0,"/home/ksingh/courses/master_thesis/Graph-Transformer/U2GNN_pytorch/log_uniform")
 
-
-from ax.plot.contour import plot_contour
-from ax.plot.trace import optimization_trace_single_method
-from ax.service.managed_loop import optimize
-from ax.utils.notebook.plotting import render, init_notebook_plotting
-from ax.utils.tutorials.cnn_utils import load_mnist, train, evaluate, CNN
-from ax import RangeParameter,ChoiceParameter,FixedParameter,ParameterType
-
 from U2GNN_pytorch import ml_link_train_utils
 from U2GNN_pytorch import data_utils_linkPrediction
 from U2GNN_pytorch import util
