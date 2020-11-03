@@ -4,6 +4,7 @@ from sklearn.metrics.cluster import adjusted_rand_score as ri
 from sklearn.metrics import accuracy_score
 from sklearn.cluster import KMeans, SpectralClustering
 import itertools
+from sklearn.metrics import average_precision_score, roc_auc_score, adjusted_mutual_info_score
 from scipy import stats
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -109,3 +110,37 @@ def print_evaluation_from_embeddings(y_true, embeddings, K=5):
     #print('Accuracy', acc_spec, 'Purity', pu_spec, 'NMI', nmi_score_spec, 'RI', ri_score_spec, "Avg CE", avg_ce )
     print("Avg CE", avg_ce )
     return avg_ce
+
+
+def sigmoid(x):
+    """ Sigmoid activation function
+    :param x: scalar value
+    :return: sigmoid activation
+    """
+    return 1 / (1 + np.exp(-x))
+
+def get_roc_score(edges_pos, edges_neg, emb):
+    """ Link Prediction: computes AUC ROC and AP scores from embeddings vectors,
+    and from ground-truth lists of positive and negative node pairs
+    :param edges_pos: list of positive node pairs
+    :param edges_neg: list of negative node pairs
+    :param emb: n*d matrix of embedding vectors for all graph nodes
+    :return: Area Under ROC Curve (AUC ROC) and Average Precision (AP) scores
+    """
+    preds = []
+    preds_neg = []
+    for e in edges_pos:
+        # Link Prediction on positive pairs
+        preds.append(sigmoid(emb[e[0],:].dot(emb[e[1],:].T)))
+    for e in edges_neg:
+        # Link Prediction on negative pairs
+        preds_neg.append(sigmoid(emb[e[0],:].dot(emb[e[1],:].T)))
+
+    # Stack all predictions and labels
+    preds_all = np.hstack([preds, preds_neg])
+    labels_all = np.hstack([np.ones(len(preds)), np.zeros(len(preds_neg))])
+
+    # Computes metrics
+    roc_score = roc_auc_score(labels_all, preds_all)
+    ap_score = average_precision_score(labels_all, preds_all)
+    return roc_score, ap_score

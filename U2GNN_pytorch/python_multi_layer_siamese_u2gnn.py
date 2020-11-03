@@ -15,7 +15,7 @@ from .util import Namespace
 class TransformerMLU2GNN(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', loss_type = 'default', adj_mat = None, single_layer_only = False, ml_model_type = 'siamese', projection_dim = -1, alpha = 0.2, features_in = None):
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type = 'default', loss_type = 'default', adj_mat = None, single_layer_only = False, ml_model_type = 'siamese', projection_dim = -1, alpha = 0.2, features_in = None, graph_list = None):
         super(TransformerMLU2GNN, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.device = device
@@ -25,8 +25,8 @@ class TransformerMLU2GNN(nn.Module):
         self.alpha = alpha
         self.vocab_size = vocab_size
         self.ml_model_type =  ml_model_type
-        self.num_u2gnn_layers = 1 if ml_model_type == 'siamese' else adj_mat.shape[-1]
-        self.num_graph_layers = adj_mat.shape[-1]
+        self.num_u2gnn_layers = 1 if ml_model_type == 'siamese' else len(graph_list)
+        self.num_graph_layers = len(graph_list)
         self.loss_func = Loss_functions(loss_type)
         self.weight = nn.Parameter(torch.Tensor(vocab_size, feature_dim_size))
         self.projection_dim = projection_dim
@@ -40,8 +40,12 @@ class TransformerMLU2GNN(nn.Module):
         else:
             self.weight = nn.Parameter(features_in)
         for i in range(self.num_u2gnn_layers):
+            if(adj_mat is not None):
+                adj_mat_layer = adj_mat[i]
+            else:
+                adj_mat_layer = None
             u2gnn_model = TransformerU2GNN(vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
-                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type, loss_type, adj_mat[i],single_layer_only = False)
+                 num_self_att_layers, num_U2GNN_layers, dropout, device, sampler_type, loss_type, adj_mat_layer ,single_layer_only = False)
             self.u2gnn_model_per_layer.append(u2gnn_model)
         #self.ss = SampledSoftmax(self.vocab_size, sampled_num, self.feature_dim_size, self.device)
         #self.reset_parameters()
