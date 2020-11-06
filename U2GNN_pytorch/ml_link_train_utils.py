@@ -142,7 +142,7 @@ def get_input_generator(args):
     features_list = [features]
     if(args.create_similarity_layer):
         adj_2 = np.array(kneighbors_graph(g.ndata['feat'].numpy(),n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
-        adj_2 = ((adj_2 + adj_2.T) > 0 ).astype(int)
+        #adj_2 = ((adj_2 + adj_2.T) > 0 ).astype(int)
         nx_g2 = nx.convert_matrix.from_numpy_array(adj_2, create_using = nx.DiGraph)
         
         graphs_list.append(nx_g2)
@@ -342,7 +342,7 @@ def evaluate(epoch, data_args, model_args, args,validate = True):
                     vt,vf = data_args.batch_nodes.get_test()
                 roc_score, ap_score = get_roc_score(vt,vf, node_embeddings)
             acc_10folds.append(ap_score)
-            print('test epoch ', epoch, ' fold ', fold_idx, ' acc ', ap_score , "roc" , roc_score)
+            print('{} epoch '.format(print_str), epoch, ' fold ', fold_idx, ' acc ', ap_score , "roc" , roc_score)
 
         mean_10folds = statistics.mean(acc_10folds)
         std_10folds = statistics.stdev(acc_10folds)

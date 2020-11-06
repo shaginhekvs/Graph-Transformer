@@ -16,7 +16,7 @@ args={}
 args['dataset']="cora"
 args['batch_size']=200
 args['multiplex_folder_path'] = "/home/ksingh/courses/master_thesis/multiplex_datasets"
-args['num_epochs']=30
+args['num_epochs']=6
 args["ng_data"] = "/home/keshav/courses/master_thesis/Graph-Transformer/code_m/data/NGs.mat"
 args['num_neighbors']=12
 args['loss_type'] = 'contrastive'
@@ -31,7 +31,7 @@ args['synth_graph_type'] = "NGs"
 args['save_input_list'] = True
 args["sampled_num"] = 20
 args['num_similarity_neighbors'] = 40
-args['create_similarity_layer'] = True
+args['create_similarity_layer'] = False
 args['scale_features'] = True
 args['ml_cluster_mat_folder'] = '/home/ksingh/courses/master_thesis/PM/Datasets'
 args = util.Namespace(**args)
@@ -61,7 +61,7 @@ def model_train_evaluate(parameterization):
     gc.collect()
     return mean_acc
 
-model_input = {"ff_hidden_size" : 1024, "num_timesteps": 20, "dropout":0.2, "sampled_num":50,"num_hidden_layers":2,"learning_rate":0.05}
+model_input = {"ff_hidden_size" : 100, "num_timesteps": 5, "dropout":0.1, "sampled_num":50,"num_hidden_layers":1,"learning_rate":0.1}
 
 embeds = model_train_evaluate_get_embeds(model_input).numpy()
 

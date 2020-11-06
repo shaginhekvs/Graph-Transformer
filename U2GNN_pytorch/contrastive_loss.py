@@ -10,7 +10,7 @@ class GraphContrastiveLoss(nn.Module):
     def __init__(self, temperature=1):
         super().__init__()
         self.temperature = temperature
-        self.epsilon = torch.tensor(1e-6, dtype = torch.float)
+        self.epsilon = torch.tensor(1e-8, dtype = torch.float)
 
     def forward(self, args):
         features = args.features 
