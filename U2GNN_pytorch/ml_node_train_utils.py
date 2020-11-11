@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from sklearn.decomposition import PCA
 
 torch.manual_seed(123)
+import sklearn
 from dgl.data import CoraDataset, CitationGraphDataset, PPIDataset, KarateClub
 import dgl
 from scipy import sparse
@@ -155,7 +156,12 @@ def get_input_generator(args):
     adj_list = [adj]
     graphs_list = [nx_g]
     Ls = [sgwt_raw_laplacian(adj)]
-    features = torch.tensor(PCA(n_components=args.size_x).fit_transform(g.ndata['feat'].numpy()),dtype=torch.float).to(args.device)
+    #features = torch.tensor(PCA(n_components=args.size_x).fit_transform(g.ndata['feat'].numpy()),dtype=torch.float).to(args.device)
+    # Create the Scaler object
+    scaler = sklearn.preprocessing.StandardScaler()
+    # Fit your data on the scaler object
+    scaled_df = scaler.fit_transform(np.log(1 + g.ndata['feat'].numpy()))
+    features = torch.tensor(scaled_df,dtype=torch.float).to(args.device)
     features_list = [features]
     if(args.create_similarity_layer):
         adj_2 = np.array(kneighbors_graph(g.ndata['feat'].numpy(),n_neighbors = args.num_similarity_neighbors, metric = "cosine",include_self = True).todense())
@@ -335,7 +341,7 @@ def single_epoch_training_util(data_args, model_args, args):
             print("loss for mini batch {} is {}".format(i, loss.item()))
         loss.backward()
         #print("backward pass done")
-        #torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)
+        torch.nn.utils.clip_grad_norm_(model_args.model.parameters(), 0.5)
         
         model_args.optimizer.step()
         #print(model_args.model.self_attn.in_proj_weight.grad.abs().sum())
@@ -401,6 +407,7 @@ def train_evaluate(data_args,model_args,args):
     for epoch in range(1, args.num_epochs + 1):
         epoch_start_time = time.time()
         train_loss = single_epoch_training_util(data_args, model_args, args)
+        
         cost_loss.append(train_loss)
         mean_10folds, std_10folds = evaluate(epoch, data_args, model_args, args)
         print('| epoch {:3d} | time: {:5.2f}s | loss {:5.2f} | mean {:5.2f} | std {:5.2f} | '.format(
@@ -411,4 +418,4 @@ def train_evaluate(data_args,model_args,args):
             
             mean_10folds_best = mean_10folds
             std_10folds_best = std_10folds
-    return mean_10folds_best, std_10folds_best
+    return cost_loss, mean_10folds_best, std_10folds_best
