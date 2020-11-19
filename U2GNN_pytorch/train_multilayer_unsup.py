@@ -9,7 +9,7 @@ import numpy as np
 np.random.seed(123)
 import time
 
-from pytorch_U2GNN_UnSup import *
+from pytorch_mlusgt_UnSup import TransformerMLUSGT
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from scipy.sparse import coo_matrix
 from util import *
@@ -34,6 +34,11 @@ parser.add_argument("--model_name", default='PTC', help="")
 parser.add_argument('--sampled_num', default=512, type=int, help='')
 parser.add_argument("--dropout", default=0.5, type=float, help="")
 parser.add_argument("--num_hidden_layers", default=1, type=int, help="")
+parser.add_argument("--model_type", default="multi", type=str, help="")
+
+parser.add_argument("--num_knn", default=2, type=int, help="")
+parser.add_argument("--use_l_att", default=False, type=bool, help="")
+parser.add_argument("--num_attr_layers", default=1, type=int, help="")
 parser.add_argument("--num_timesteps", default=1, type=int, help="Timestep T ~ Number of self-attention layers within each U2GNN layer")
 parser.add_argument("--ff_hidden_size", default=1024, type=int, help="The hidden size for the feedforward layer")
 parser.add_argument("--num_neighbors", default=4, type=int, help="")
@@ -44,23 +49,43 @@ print(args)
 
 # Load data
 print("Loading data...")
+add_knn_layer = False
+if(args.num_knn>0):
+    add_knn_layer = True
 
 use_degree_as_tag = False
 if args.dataset == 'COLLAB' or args.dataset == 'IMDBBINARY' or args.dataset == 'IMDBMULTI':
     use_degree_as_tag = True
 graphs, num_classes = load_data(args.dataset, use_degree_as_tag)
+add_multiple_layers(graphs,n_top_attrs = args.num_attr_layers,knn_featrs = add_knn_layer,num_knn = args.num_knn)
+
+num_graph_layers = 1
+if(args.num_attr_layers >0):
+    num_graph_layers += args.num_attr_layers
+if(args.num_knn > 0 ):
+    num_graph_layers += 1
+
 graph_labels = np.array([graph.label for graph in graphs])
 feature_dim_size = graphs[0].node_features.shape[1]
 print(feature_dim_size)
 if "REDDIT" in args.dataset:
     feature_dim_size = 4
 
-def get_Adj_matrix(batch_graph):
+def get_Adj_matrix(batch_graph,mat_type = 'base', edge_mat_idx = 0):
     edge_mat_list = []
     start_idx = [0]
     for i, graph in enumerate(batch_graph):
         start_idx.append(start_idx[i] + len(graph.g))
-        edge_mat_list.append(graph.edge_mat + start_idx[i])
+        edge_mat = None
+        if(mat_type == 'base'):
+            edge_mat = graph.edge_mat
+        elif(mat_type == 'knn'):
+            edge_mat = graph.edge_mat_knn
+        elif(mat_type == "attrs"):
+            edge_mat = graph.edge_mat_attrs[edge_mat_idx]
+        else:
+            raise ValueError("unknown edge mat string {}".format(mat_type))
+        edge_mat_list.append(edge_mat + start_idx[i])
 
     Adj_block_idx = np.concatenate(edge_mat_list, 1)
     # Adj_block_elem = np.ones(Adj_block_idx.shape[1])
@@ -97,16 +122,9 @@ def get_idx_nodes(selected_graph_idx):
     idx_nodes = torch.cat(idx_nodes)
     return idx_nodes.to(device)
 
-def get_batch_data(selected_idx):
-    batch_graph = [graphs[idx] for idx in selected_idx]
 
-    X_concat = np.concatenate([graph.node_features for graph in batch_graph], 0)
-    if "REDDIT" in args.dataset:
-        X_concat = np.tile(X_concat, feature_dim_size) #[1,1,1,1]
-        X_concat = X_concat * 0.01
-    X_concat = torch.from_numpy(X_concat).to(device)
-
-    Adj_block_idx_row, Adj_block_idx_cl = get_Adj_matrix(batch_graph)
+def get_single_layer_neighbors(batch_graph, mat_type, idx_type, num_nodes):
+    Adj_block_idx_row, Adj_block_idx_cl = get_Adj_matrix(batch_graph,mat_type =mat_type, edge_mat_idx = idx_type)
     dict_Adj_block = {}
     for i in range(len(Adj_block_idx_row)):
         if Adj_block_idx_row[i] not in dict_Adj_block:
@@ -114,16 +132,53 @@ def get_batch_data(selected_idx):
         dict_Adj_block[Adj_block_idx_row[i]].append(Adj_block_idx_cl[i])
 
     input_neighbors = []
-    for input_node in range(X_concat.shape[0]):
+    for input_node in range(num_nodes):
         if input_node in dict_Adj_block:
             input_neighbors.append([input_node] + list(np.random.choice(dict_Adj_block[input_node], args.num_neighbors, replace=True)))
         else:
             input_neighbors.append([input_node for _ in range(args.num_neighbors + 1)])
     input_x = np.array(input_neighbors)
     input_x = torch.from_numpy(input_x).to(device)
+    return input_x
+    
+def get_neighbors(batch_graph, num_nodes):
+    mat_type = ["base"]
+    idx_type = [[0]]
+    if(args.num_knn > 0):
+        mat_type.append("knn")
+        idx_type.append([0])
+    if(args.num_attr_layers > 0):
+        mat_type.append("attrs")
+        idx_type.append(list(range(0,args.num_attr_layers)))
+    neighbors = []
+    for list_idx, mat_name in zip(idx_type,mat_type):
+        for idx in list_idx:
+            #print(idx)
+            neighbors.append(get_single_layer_neighbors(batch_graph,mat_type = mat_name, idx_type = idx,num_nodes = num_nodes))
+    return neighbors
+            
+        
+    
+    
+def get_batch_data(selected_idx):
+    batch_graph = [graphs[idx] for idx in selected_idx]
 
+    X_concat = np.concatenate([graph.node_features for graph in batch_graph], 0)
+    num_nodes = X_concat.shape[0]
+    if "REDDIT" in args.dataset:
+        X_concat = np.tile(X_concat, feature_dim_size) #[1,1,1,1]
+        X_concat = X_concat * 0.01
+    X_concat = torch.from_numpy(X_concat).to(device)
+
+    Adj_block_idx_row, Adj_block_idx_cl = get_Adj_matrix(batch_graph)
+    
+    neighbors = get_neighbors(batch_graph, num_nodes)
+    input_x = torch.stack(neighbors,axis = 0)
+    X_concat = torch.stack([X_concat]*num_graph_layers,axis = 0)
+    #print(input_x.shape)
+    #print(X_concat.shape)
     input_y = get_idx_nodes(selected_idx)
-
+    #print(input_y)
     return X_concat, input_x, input_y
 
 class Batch_Loader(object):
@@ -134,12 +189,16 @@ class Batch_Loader(object):
 
 batch_nodes = Batch_Loader()
 
+
+
 print("Loading data... finished!")
 
-model = TransformerU2GNN(feature_dim_size=feature_dim_size, ff_hidden_size=args.ff_hidden_size,
+
+model = TransformerMLUSGT(feature_dim_size=feature_dim_size, ff_hidden_size=args.ff_hidden_size,
                         dropout=args.dropout, num_self_att_layers=args.num_timesteps,
                         vocab_size=vocab_size, sampled_num=args.sampled_num,
-                        num_U2GNN_layers=args.num_hidden_layers, device=device).to(device)
+                        num_U2GNN_layers=args.num_hidden_layers, device=device, 
+                          l_att = args.use_l_att , num_graph_layers=num_graph_layers,siamese = args.model_type).to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 num_batches_per_epoch = int((len(graphs) - 1) / args.batch_size) + 1

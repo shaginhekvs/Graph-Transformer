@@ -2,18 +2,19 @@ import networkx as nx
 import numpy as np
 import random
 import scipy.sparse as sp
-import pyriemann
+import itertools
+from sklearn.neighbors import kneighbors_graph
+from collections import Counter
+
 from sklearn.model_selection import StratifiedKFold
 
-
-
-def make_symmetric(A):
-    adj = (A + A.T)/2
-    adj = (adj >0).astype(int)
-    return adj
-
-
 """Adapted from https://github.com/weihua916/powerful-gnns/blob/master/util.py"""
+
+def get_edges_mat(g):
+    edges = [list(pair) for pair in g.edges()]
+    edges.extend([[i, j] for j, i in edges])
+    #print(edges)
+    return np.transpose(np.array(edges, dtype=np.int32), (1,0))
 
 class S2VGraph(object):
     def __init__(self, g, label, node_tags=None, node_features=None):
@@ -32,24 +33,47 @@ class S2VGraph(object):
         self.node_features = 0
         self.edge_mat = 0
         self.max_neighbor = 0
+        self.knn_g = None
+        self.attr_gs = []
+        self.edge_mat_knn = None
+        self.edge_mat_attrs = []
 
-class Namespace:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-    
-    def update(self, **kwargs):
-        self.__dict__.update(kwargs)
+def build_kneighbors(X, knn=True, n_neighbors=20):
+    if knn:
+        A = kneighbors_graph(X, n_neighbors, include_self=True)
+        A = np.array(A.todense())
+        A = (A + A.T)/2
+        A = (A >0).astype(int)
+    else:
+        A = pairwise_kernels(X, metric='rbf', gamma=1)
+    return A
 
-def get_gm(L, S,n):
-    L_reg = np.zeros((S, n, n))
 
-    for i in range(S):
-        L_reg[i,:,:] = L[:,:,i] +  10.0 * np.eye(n)
-    
-    
-    L_geometric_mean = pyriemann.utils.mean.mean_riemann(L_reg)
-    
-    return L_geometric_mean
+def add_multiple_layers(list_g,n_top_attrs = 2,knn_featrs = True,num_knn = 3):
+    for g in list_g:
+        g.knn_g = None
+        g.edge_mat_knn = None
+        g.attr_gs = []
+        g.edge_mat_attrs = []
+        if(knn_featrs):
+            A = build_kneighbors(g.node_features,n_neighbors = num_knn)
+            g_knn = nx.convert_matrix.from_numpy_matrix(A)
+            g.knn_g = g_knn
+            g.edge_mat_knn = get_edges_mat(g.knn_g)
+        if(n_top_attrs>0):
+            c = Counter(g.node_tags)
+            top_vals = c.most_common(n_top_attrs)
+            for value, count in top_vals:
+                G_cur = nx.Graph()
+                G_cur.add_nodes_from(g.g.nodes())
+                imp_nodes = [node for i,node in enumerate(g.g.nodes()) if (g.node_tags[i] == value)]
+                if(len(imp_nodes)<=1):
+                    break
+                for u,v in itertools.combinations(imp_nodes, 2):
+                    G_cur.add_edge(u,v)
+                g.attr_gs.append(G_cur)
+                g.edge_mat_attrs.append(get_edges_mat(G_cur))
+        
 
 def load_data(dataset, degree_as_tag):
     '''
@@ -62,12 +86,8 @@ def load_data(dataset, degree_as_tag):
     g_list = []
     label_dict = {}
     feat_dict = {}
-    import os 
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    parent_path = os.path.abspath(os.path.join(dir_path, os.pardir))
-    dataset_path = os.path.join(parent_path,"dataset",dataset,dataset+".txt")
-    print('dataset file chosen is {}'.format(dataset_path))
-    with open(dataset_path, 'r') as f:
+
+    with open('../dataset/%s/%s.txt' % (dataset, dataset), 'r') as f:
         n_g = int(f.readline().strip())
         for i in range(n_g):
             row = f.readline().strip().split()
@@ -144,13 +164,20 @@ def load_data(dataset, degree_as_tag):
 
     tagset = list(tagset)
     tag2index = {tagset[i]:i for i in range(len(tagset))}
-
+    max_nodes = 0
+    min_nodes = 1e8
     for g in g_list:
         g.node_features = np.zeros((len(g.node_tags), len(tagset)), dtype=np.float32)
         g.node_features[range(len(g.node_tags)), [tag2index[tag] for tag in g.node_tags]] = 1
-
-
+        if(g.node_features.shape[0]>max_nodes):
+            max_nodes = g.node_features.shape[0]
+        if(g.node_features.shape[0]<min_nodes):
+            min_nodes = g.node_features.shape[0]
+    
     print('# classes: %d' % len(label_dict))
+    print('# feature_size: %d' % g_list[0].node_features.shape[1])
+    print('# max nodes : %d' % max_nodes)
+    print('# min nodes : %d' % min_nodes)
     print('# maximum node tag: %d' % len(tagset))
 
     print("# data: %d" % len(g_list))

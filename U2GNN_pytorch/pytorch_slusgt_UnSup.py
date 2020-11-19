@@ -3,13 +3,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
-from sampled_softmax import  *
 
-class TransformerU2GNN(nn.Module):
+class TransformerSLUSGT(nn.Module):
 
     def __init__(self, vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
                  num_self_att_layers, num_U2GNN_layers, dropout,device, l_att = True ):
-        super(TransformerU2GNN, self).__init__()
+        super(TransformerSLUSGT, self).__init__()
         self.feature_dim_size = feature_dim_size
         self.self_attn = nn.MultiheadAttention(self.feature_dim_size, 1, dropout=dropout)
         self.ff_hidden_size = ff_hidden_size
@@ -26,11 +25,8 @@ class TransformerU2GNN(nn.Module):
             self.u2gnn_layers.append(TransformerEncoder(encoder_layers, self.num_self_att_layers))
         # Linear function
         self.dropouts = nn.Dropout(dropout)
-        final_embd_shape = self.feature_dim_size
-        if(not l_att):
-            final_embd_shape = final_embd_shape * num_U2GNN_layers
-        self.ss = SampledSoftmax(self.vocab_size, self.sampled_num, self.feature_dim_size, self.device)
 
+        
     def forward(self, X_concat, input_x, input_y):
         output_vectors = [] # should test output_vectors = [X_concat]
         input_Tr = F.embedding(input_x, X_concat)
@@ -54,7 +50,7 @@ class TransformerU2GNN(nn.Module):
         #print(output_vectors.shape)
         #output_vectors = self.dropouts(output_vector)
 
-        logits = self.ss(output_vectors, input_y)
+        #logits = self.ss(output_vectors, input_y)
 
-        return logits
+        return output_vectors
 
