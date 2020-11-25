@@ -25,8 +25,8 @@ class TransformerMLUSGT(nn.Module):
         if(siamese):
             model = TransformerSLUSGT(vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
                  num_self_att_layers, num_U2GNN_layers, dropout,device, l_att )
-        for _ in range(num_graph_layers):
-            self.slusgt_layers.append(model)
+            for _ in range(num_graph_layers):
+                self.slusgt_layers.append(model)
         else:
             for _ in range(num_graph_layers):
                 model = TransformerSLUSGT(vocab_size, feature_dim_size, ff_hidden_size, sampled_num,
