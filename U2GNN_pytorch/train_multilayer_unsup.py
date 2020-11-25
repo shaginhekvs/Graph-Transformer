@@ -34,7 +34,7 @@ parser.add_argument("--model_name", default='PTC', help="")
 parser.add_argument('--sampled_num', default=512, type=int, help='')
 parser.add_argument("--dropout", default=0.5, type=float, help="")
 parser.add_argument("--num_hidden_layers", default=1, type=int, help="")
-parser.add_argument("--model_type", default="multi", type=str, help="")
+parser.add_argument("--model_siamese", default=False, type=bool, help="")
 
 parser.add_argument("--num_knn", default=2, type=int, help="")
 parser.add_argument("--use_l_att", default=False, type=bool, help="")
@@ -198,7 +198,7 @@ model = TransformerMLUSGT(feature_dim_size=feature_dim_size, ff_hidden_size=args
                         dropout=args.dropout, num_self_att_layers=args.num_timesteps,
                         vocab_size=vocab_size, sampled_num=args.sampled_num,
                         num_U2GNN_layers=args.num_hidden_layers, device=device, 
-                          l_att = args.use_l_att , num_graph_layers=num_graph_layers,siamese = args.model_type).to(device)
+                          l_att = args.use_l_att , num_graph_layers=num_graph_layers,siamese = args.model_siamese).to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 num_batches_per_epoch = int((len(graphs) - 1) / args.batch_size) + 1
