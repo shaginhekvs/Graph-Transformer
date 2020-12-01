@@ -48,15 +48,23 @@ args = parser.parse_args()
 print(args)
 
 # Load data
-print("Loading data...")
+
 add_knn_layer = False
 if(args.num_knn>0):
     add_knn_layer = True
 
 use_degree_as_tag = False
+list_tud = ["AIDS","BZR", "COX2", "FIRSTMM_DB"]
+
 if args.dataset == 'COLLAB' or args.dataset == 'IMDBBINARY' or args.dataset == 'IMDBMULTI':
     use_degree_as_tag = True
-graphs, num_classes = load_data(args.dataset, use_degree_as_tag)
+if( args.dataset not in list_tud):
+    print("Loading data...")
+    graphs, num_classes = load_data(args.dataset, use_degree_as_tag)
+else:
+    print("Loading TUD dataset using DGL")
+    graphs,num_classes = load_tu_dataset(args.dataset)
+
 add_multiple_layers(graphs,n_top_attrs = args.num_attr_layers,knn_featrs = add_knn_layer,num_knn = args.num_knn)
 
 num_graph_layers = 1

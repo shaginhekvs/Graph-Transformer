@@ -12,5 +12,21 @@ python train_multilayer_unsup.py --dataset MUTAG --batch_size 4  --ff_hidden_siz
 
 
 
-python train_multilayer_unsup.py --dataset PROTEINS --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0  --model_type siamese --model_name PROTEINS
+python train_multilayer_unsup.py --dataset PROTEINS --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0  --model_name PROTEINS
 
+
+
+
+python train_multilayer_unsup.py --dataset NCI1 --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name NCI1
+
+
+
+python train_multilayer_unsup.py --dataset ENZYMES --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name ENZYMES
+
+
+
+python train_multilayer_unsup.py --dataset Cuneiform --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name Cuneiform
+
+
+
+python train_multilayer_unsup.py --dataset FIRSTMM_DB --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name FIRSTMM_DB

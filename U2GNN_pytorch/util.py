@@ -2,7 +2,9 @@ import networkx as nx
 import numpy as np
 import random
 import scipy.sparse as sp
+import sklearn
 import itertools
+from dgl.data import TUDataset
 from sklearn.neighbors import kneighbors_graph
 from collections import Counter
 
@@ -75,7 +77,7 @@ def add_multiple_layers(list_g,n_top_attrs = 2,knn_featrs = True,num_knn = 3):
                 g.edge_mat_attrs.append(get_edges_mat(G_cur))
         
 
-def load_data(dataset, degree_as_tag):
+def load_data(dataset, degree_as_tag, root_folder = ".."):
     '''
         dataset: name of dataset
         test_proportion: ratio of test train split
@@ -87,7 +89,7 @@ def load_data(dataset, degree_as_tag):
     label_dict = {}
     feat_dict = {}
 
-    with open('../dataset/%s/%s.txt' % (dataset, dataset), 'r') as f:
+    with open('%s/dataset/%s/%s.txt' % (root_folder, dataset, dataset), 'r') as f:
         n_g = int(f.readline().strip())
         for i in range(n_g):
             row = f.readline().strip().split()
@@ -184,6 +186,106 @@ def load_data(dataset, degree_as_tag):
 
     return g_list, len(label_dict)
 
+'''
+tu dataset loading  funcs start
+'''
+def get_onehot_features(graph_info,max_node_tag):
+    feature_size = max_node_tag
+
+    node_feats = []
+    #print(graph_info.ndata["node_labels"])
+    for node in range(graph_info.ndata["node_labels"].shape[0]):
+        cur_feat = np.zeros(feature_size,dtype = np.float32)
+        #print(graph_info.ndata["node_labels"][node])
+        cur_label = graph_info.ndata["node_labels"][node].item()
+        cur_feat[cur_label] = 1
+        assert cur_feat.nonzero()[0] == cur_label
+        node_feats.append(cur_feat)
+    
+    return np.stack(node_feats,axis = 0)
+
+
+def make_edge_mat_neighs(g_svg):
+        #add labels and edge_mat       
+    g = g_svg
+    g.neighbors = [[] for i in range(len(g.g))]
+    for i, j in g.g.edges():
+        g.neighbors[i].append(j)
+        g.neighbors[j].append(i)
+    degree_list = []
+    for i in range(len(g.g)):
+        g.neighbors[i] = g.neighbors[i]
+        degree_list.append(len(g.neighbors[i]))
+    g.max_neighbor = max(degree_list)
+    
+    
+
+    edges = [list(pair) for pair in g.g.edges()]
+    edges.extend([[i, j] for j, i in edges])
+
+    deg_list = list(dict(g.g.degree(range(len(g.g)))).values())
+
+    g.edge_mat = np.transpose(np.array(edges, dtype=np.int32), (1,0))
+
+    
+    
+
+def load_tu_dataset(dataset_name):
+    data_dgl = TUDataset(dataset_name)
+    node_labels = False
+    if("node_labels" in data_dgl.__dict__["attr_dict"].keys()):
+        node_labels = True
+    if(node_labels):
+        num_labels = data_dgl.num_labels[0]
+        max_node_tag = 0
+        for g_info in data_dgl.__dict__['graph_lists']:
+            cur_tag= g_info.ndata['node_labels'].max().item()+1
+            if(cur_tag > max_node_tag ):
+                max_node_tag = cur_tag
+                #print(cur_tag)
+
+    
+    g_list = []
+    max_nodes = 0
+    min_nodes = 1000000
+    for g_l , g_info in zip(data_dgl.graph_labels, data_dgl.graph_lists):
+        node_feats = None
+        node_tags = None
+        g_nx = g_info.to_networkx()
+        
+        if(node_labels):
+            #print(g_info.__dict__)
+            node_feats = get_onehot_features(g_info, max_node_tag)
+            node_tags = g_info.ndata["node_labels"].numpy().flatten()
+            
+        if("node_attr" in g_info.ndata.keys()):
+            attrs = g_info.ndata["node_attr"].numpy().astype(np.float32)
+            node_feats = np.concatenate([node_feats,attrs],axis = 1)
+        l = g_l[0]
+        g_svg = S2VGraph(g_nx, l, node_tags)
+        g_svg.node_features = node_feats
+        #g_svg.neighbors = l_neighs
+        make_edge_mat_neighs(g_svg)
+        #print(g_svg.__dict__)
+        
+        g_list.append(g_svg)
+        if(g_svg.node_features.shape[0]>max_nodes):
+            max_nodes = g_svg.node_features.shape[0]
+        if(g_svg.node_features.shape[0]<min_nodes):
+            min_nodes = g_svg.node_features.shape[0]
+    
+    print('# classes: %d' % data_dgl.num_labels[0].item())
+    print('# feature_size: %d' % g_list[0].node_features.shape[1])
+    print('# max nodes : %d' % max_nodes)
+    print('# min nodes : %d' % min_nodes)
+    print("# data: %d" % len(g_list))
+    return g_list, data_dgl.num_labels[0].item()
+
+'''
+
+tu dataset loading finish 
+
+'''
 def separate_data(graph_list, fold_idx, seed=0):
     assert 0 <= fold_idx and fold_idx < 10, "fold_idx must be from 0 to 9."
     skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=seed)
