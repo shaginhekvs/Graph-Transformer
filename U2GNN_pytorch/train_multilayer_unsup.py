@@ -54,7 +54,7 @@ if(args.num_knn>0):
     add_knn_layer = True
 
 use_degree_as_tag = False
-list_tud = ["AIDS","BZR", "COX2", "FIRSTMM_DB"]
+list_tud = ["AIDS","BZR", "COX2", "TWITTER-Real-Graph-Partial"]
 
 if args.dataset == 'COLLAB' or args.dataset == 'IMDBBINARY' or args.dataset == 'IMDBMULTI':
     use_degree_as_tag = True
