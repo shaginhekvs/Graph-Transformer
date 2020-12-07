@@ -212,3 +212,6 @@ for epoch in range(1, args.num_epochs + 1):
     write_acc.write('epoch ' + str(epoch) + ' fold ' + str(args.fold_idx) + ' acc ' + str(acc_test*100) + '%\n')
 
 write_acc.close()
+
+
+

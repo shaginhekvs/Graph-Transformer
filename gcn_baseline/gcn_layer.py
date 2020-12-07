@@ -9,7 +9,7 @@ import numpy as np
 def uniform(shape, scale=0.05, name=None):
     """Uniform init."""
     initial = tf.random_uniform(shape, minval=-scale, maxval=scale, dtype=tf.float32)
-    return tf.Variable(initial, name=name)
+    return tf.compat.v1.Variable(initial, name=name)
 
 def glorot(shape, name=None):
     """Glorot & Bengio (AISTATS 2010) init."""
@@ -124,7 +124,7 @@ class GraphConvolution(Layer):
         # helper variable for sparse dropout
         self.num_features_nonzero = placeholders['num_features_nonzero']
 
-        with tf.variable_scope(self.name + '_vars'):
+        with tf.compat.v1.variable_scope(self.name + '_vars'):
             self.vars['weights'] = glorot([input_dim, output_dim], name='weights')
             if self.bias:
                 self.vars['bias'] = zeros([output_dim], name='bias')

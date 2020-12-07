@@ -44,9 +44,22 @@ print("Loading data...")
 use_degree_as_tag = False
 if args.dataset == 'COLLAB' or args.dataset == 'IMDBBINARY' or args.dataset == 'IMDBMULTI':
     use_degree_as_tag = True
-graphs, num_classes = load_data(args.dataset, use_degree_as_tag)
+    
+    
+list_tud = ["AIDS","BZR", "COX2", "TWITTER-Real-Graph-Partial", "OHSU" , "Peking_1"]
+
+if args.dataset == 'COLLAB' or args.dataset == 'IMDBBINARY' or args.dataset == 'IMDBMULTI':
+    use_degree_as_tag = True
+if( args.dataset not in list_tud):
+    print("Loading data...")
+    graphs, num_classes = load_data(args.dataset, use_degree_as_tag)
+else:
+    print("Loading TUD dataset using DGL")
+    graphs,num_classes = load_tu_dataset(args.dataset)
+    
 feature_dim_size = graphs[0].node_features.shape[1]
 graph_labels = np.array([graph.label for graph in graphs])
+#args.batch_size = len(graphs)
 if "REDDIT" in args.dataset:
     feature_dim_size = 4
 
@@ -174,12 +187,26 @@ with tf.Graph().as_default():
             loss = 0
             for _ in range(num_batches_per_epoch):
                 Adj_block, X_concat, num_features_nonzero, idx_nodes = batch_nodes()
+                #print(X_concat.shape)
                 loss += train_step(Adj_block, X_concat, num_features_nonzero, idx_nodes)
                 # current_step = tf.compat.v1.train.global_step(sess, global_step)
-            print(loss)
             # It will give tensor object
-            node_embeddings = graph.get_tensor_by_name('embedding/node_embeddings:0')
+            node_embeddings = graph.get_tensor_by_name('embedding/node_embeddings/Read/ReadVariableOp:0')
             node_embeddings = sess.run(node_embeddings)
+            
+            '''
+            for op in graph.get_operations():
+                if("node_embeddings" in op.name and "Adam" not in op.name):
+                    
+                    if(len(op.values())>0):
+                        #if(len(op.values()[0].shape) == 2 and  op.values()[0].shape[0] == 3371):
+                        print(op.name)
+                        print(op.values() )
+                            
+            print(args.batch_size)
+            print(graph_pool.shape)
+            print(node_embeddings.shape)
+            '''
             graph_embeddings = graph_pool.dot(node_embeddings)
             #
             acc_10folds = []

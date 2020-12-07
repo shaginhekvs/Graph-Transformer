@@ -8,6 +8,9 @@ python train_multilayer_unsup.py --dataset PTC --batch_size 10  --ff_hidden_size
 
 
 
+
+
+
 python train_multilayer_unsup.py --dataset MUTAG --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 3 --learning_rate 0.0003  --num_knn 3 --num_attr_layers 1  --model_name MUTAG
 
 
@@ -18,6 +21,8 @@ python train_multilayer_unsup.py --dataset PROTEINS --batch_size 4  --ff_hidden_
 
 
 python train_multilayer_unsup.py --dataset NCI1 --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name NCI1
+
+python train_multilayer_unsup.py --dataset NCI109 --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name NCI109
 
 
 
@@ -30,3 +35,20 @@ python train_multilayer_unsup.py --dataset Cuneiform --batch_size 4  --ff_hidden
 
 
 python train_multilayer_unsup.py --dataset TWITTER-Real-Graph-Partial --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name TWITTER-Real-Graph-Partial
+
+
+python train_multilayer_unsup.py --dataset OHSU --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name OHSU
+
+# load the values of dataset now, leading to the change in values from there 
+
+Peking_1
+
+python train_multilayer_unsup.py --dataset Peking_1 --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 100 --num_timesteps 2 --num_hidden_layers 6 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0 --model_name Peking_1
+
+
+
+python train_unsup_gcn.py --dataset MUTAG --batch_size 10  --num_epochs 50 --model_name MUTAG
+
+
+python train_multilayer_transfer_learn.py --dataset PTC --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 1 --num_timesteps 2 --num_hidden_layers 3 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0  --model_name PTC
+

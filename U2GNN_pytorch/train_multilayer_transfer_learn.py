@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 torch.manual_seed(123)
 
+from pytorch_U2GNN_Sup import *
 import numpy as np
 np.random.seed(123)
 import time
@@ -168,8 +169,8 @@ def get_neighbors(batch_graph, num_nodes):
         
     
     
-def get_batch_data(selected_idx):
-    batch_graph = [graphs[idx] for idx in selected_idx]
+def get_batch_data(batch_graph, selected_idx):
+    
 
     X_concat = np.concatenate([graph.node_features for graph in batch_graph], 0)
     num_nodes = X_concat.shape[0]
@@ -177,6 +178,8 @@ def get_batch_data(selected_idx):
         X_concat = np.tile(X_concat, feature_dim_size) #[1,1,1,1]
         X_concat = X_concat * 0.01
     X_concat = torch.from_numpy(X_concat).to(device)
+    # graph-level sum pooling
+    graph_pool = get_graphpool(batch_graph)
 
     Adj_block_idx_row, Adj_block_idx_cl = get_Adj_matrix(batch_graph)
     
@@ -187,13 +190,19 @@ def get_batch_data(selected_idx):
     #print(X_concat.shape)
     input_y = get_idx_nodes(selected_idx)
     #print(input_y)
-    return X_concat, input_x, input_y
+     #
+    graph_labels = np.array([graph.label for graph in batch_graph])
+    graph_labels = torch.from_numpy(graph_labels).to(device)
+
+    return X_concat, input_x, input_y, graph_labels, graph_pool
+
 
 class Batch_Loader(object):
     def __call__(self):
         selected_idx = np.random.permutation(len(graphs))[:args.batch_size]
-        X_concat, input_x, input_y = get_batch_data(selected_idx)
-        return X_concat, input_x, input_y
+        batch_graph = [graphs[idx] for idx in selected_idx]
+        X_concat, input_x, input_y, graph_labels,graph_pool  = get_batch_data(batch_graph, selected_idx)
+        return X_concat, input_x, input_y 
 
 batch_nodes = Batch_Loader()
 
@@ -206,7 +215,7 @@ model = TransformerMLUSGT(feature_dim_size=feature_dim_size, ff_hidden_size=args
                         dropout=args.dropout, num_self_att_layers=args.num_timesteps,
                         vocab_size=vocab_size, sampled_num=args.sampled_num,
                         num_U2GNN_layers=args.num_hidden_layers, device=device, 
-                          l_att = args.use_l_att , num_graph_layers=num_graph_layers,siamese = args.model_siamese).to(device)
+                          l_att = args.use_l_att , num_graph_layers=num_graph_layers,siamese = args.model_siamese,num_classes = num_classes).to(device)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
 num_batches_per_epoch = int((len(graphs) - 1) / args.batch_size) + 1
@@ -216,7 +225,7 @@ def train():
     model.train() # Turn on the train mode
     total_loss = 0.
     for _ in range(num_batches_per_epoch):
-        X_concat, input_x, input_y = batch_nodes()
+        X_concat, input_x, input_y  = batch_nodes()
         optimizer.zero_grad()
         logits = model(X_concat, input_x, input_y)
         loss = torch.sum(logits)
@@ -279,4 +288,92 @@ for epoch in range(1, args.num_epochs + 1):
 
     write_acc.write('epoch ' + str(epoch) + ' mean: ' + str(mean_10folds*100) + ' std: ' + str(std_10folds*100) + '\n')
 
+
+
+print("'''\n\n Supervised Transfer learning now'''")
+
+train_graphs, test_graphs = separate_data(graphs, args.fold_idx)
+
+
+def cross_entropy(pred, soft_targets): # use nn.CrossEntropyLoss if not using soft labels in Line 159
+    logsoftmax = nn.LogSoftmax(dim=1)
+    return torch.mean(torch.sum(- soft_targets * logsoftmax(pred), 1))
+
+
+
+
+class Batch_Loader(object):
+    def __call__(self):
+        selected_idx = np.random.permutation(len(train_graphs))[:args.batch_size]
+        batch_graph = [train_graphs[idx] for idx in selected_idx]
+        X_concat, input_x, input_y, graph_labels,graph_pool= get_batch_data(batch_graph,selected_idx)
+        return X_concat, input_x, input_y, graph_labels, graph_pool
+
+batch_nodes = Batch_Loader()
+# input_x, graph_pool, X_concat, graph_labels = batch_nodes()
+# print(input_x)
+# print(X_concat)
+
+optimizer_tl = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+scheduler_tl = torch.optim.lr_scheduler.StepLR(optimizer, step_size=num_batches_per_epoch, gamma=0.1)
+
+
+def train_tl():
+    model.train() # Turn on the train mode
+    total_loss = 0.
+    for _ in range(num_batches_per_epoch):
+        X_concat, input_x, input_y, graph_labels,graph_pool  = batch_nodes()
+        graph_labels = label_smoothing(graph_labels, num_classes)
+        optimizer_tl.zero_grad()
+        prediction_scores = model(X_concat, input_x, input_y,graph_pool, tl=True )
+        # loss = criterion(prediction_scores, graph_labels)
+        loss = cross_entropy(prediction_scores, graph_labels)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5) # prevent the exploding gradient problem
+        optimizer_tl.step()
+        total_loss += loss.item()
+
+    return total_loss
+cost_loss = []
+
+
+
+def evaluate_tl():
+    model.eval() # Turn on the evaluation mode
+    total_loss = 0.
+    with torch.no_grad():
+        # evaluating
+        prediction_output = []
+        idx = np.arange(len(test_graphs))
+        for i in range(0, len(test_graphs), args.batch_size):
+            sampled_idx = idx[i:i + args.batch_size]
+            if len(sampled_idx) == 0:
+                continue
+            batch_test_graphs = [test_graphs[j] for j in sampled_idx]
+            X_concat, input_x, input_y, graph_labels,graph_pool  = get_batch_data(batch_test_graphs,sampled_idx)
+            prediction_scores = model(X_concat, input_x, input_y, graph_pool, tl=True).detach()
+            prediction_output.append(prediction_scores)
+    prediction_output = torch.cat(prediction_output, 0)
+    predictions = prediction_output.max(1, keepdim=True)[1]
+    labels = torch.LongTensor([graph.label for graph in test_graphs]).to(device)
+    correct = predictions.eq(labels.view_as(predictions)).sum().cpu().item()
+    acc_test = correct / float(len(test_graphs))
+
+    return acc_test
+
+for epoch in range(1, args.num_epochs + 1):
+    epoch_start_time = time.time()
+    train_loss = train_tl()
+    cost_loss.append(train_loss)
+    acc_test = evaluate_tl()
+    print('| epoch {:3d} | time: {:5.2f}s | loss {:5.2f} | test acc {:5.2f} | '.format(
+                epoch, (time.time() - epoch_start_time), train_loss, acc_test*100))
+
+    if epoch > 5 and cost_loss[-1] > np.mean(cost_loss[-6:-1]):
+        scheduler_tl.step()
+
+    write_acc.write('epoch ' + str(epoch) + ' fold ' + str(args.fold_idx) + ' acc ' + str(acc_test*100) + '%\n')
+
 write_acc.close()
+
+
