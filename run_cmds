@@ -50,5 +50,5 @@ python train_multilayer_unsup.py --dataset Peking_1 --batch_size 4  --ff_hidden_
 python train_unsup_gcn.py --dataset MUTAG --batch_size 10  --num_epochs 50 --model_name MUTAG
 
 
-python train_multilayer_transfer_learn.py --dataset PTC --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 1 --num_timesteps 2 --num_hidden_layers 3 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0  --model_name PTC
+python train_multilayer_unsup.py --dataset PTC_MR --batch_size 4  --ff_hidden_size 1024 --num_neighbors 16 --sampled_num 512 --num_epochs 1 --num_timesteps 2 --num_hidden_layers 4 --learning_rate 0.0003  --num_knn 0 --num_attr_layers 0  --model_name PTC_MR
 
